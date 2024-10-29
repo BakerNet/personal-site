@@ -8,6 +8,16 @@ pub struct Terminal {
     pointer: usize,
 }
 
+const LEN_OF_INDEX: usize = 9;
+const MINES_URL: &'static str = "https://mines.hansbaker.com";
+const HELP_TEXT: &'static str = r#"This is Hans Baker's personal website.  Use this terminal to navigate the site.
+The commands should feel familiar:
+    ls      list directory contents (sitemap)
+    cd      change directory (navigate site)
+    pwd     print name of the current/working directory (current URL path)
+    clear   clear the terminal screen
+    mines   minesweeper app"#;
+
 impl Terminal {
     pub fn new(blog_posts: &[String], history: Option<Vec<String>>) -> Self {
         let history = history.unwrap_or_default();
@@ -31,18 +41,7 @@ impl Terminal {
         };
         let cmd = Command::from(cmd_text);
         match cmd {
-            Command::Help => CommandRes::Output(Arc::new(move || {
-                {
-                    r#"This is Hans Baker's personal website.  Use this terminal to navigate the site.
-The commands should feel familiar:
-    ls      list directory contents (sitemap)
-    cd      change directory (navigate site)
-    pwd     print name of the current/working directory (current URL path)
-    clear   clear the terminal screen
-    mines   minesweeper app"#
-                    .into_any()
-                }
-            })),
+            Command::Help => CommandRes::Output(Arc::new(move || HELP_TEXT.into_any())),
             Command::Pwd => {
                 let path = path.to_owned();
                 CommandRes::Output(Arc::new(move || view! { {path.clone()} }.into_any()))
@@ -51,7 +50,7 @@ The commands should feel familiar:
             Command::Cd => self.handle_cd(path, parts.collect()),
             Command::Cat => todo!(),
             Command::Clear => CommandRes::Nothing,
-            Command::Mines => CommandRes::Redirect("https://mines.hansbaker.com".to_string()),
+            Command::Mines => CommandRes::Redirect(MINES_URL.to_string()),
             Command::Unknown => self.handle_unknown(path, cmd_text),
         }
     }
@@ -75,7 +74,40 @@ The commands should feel familiar:
     }
 
     fn handle_unknown(&self, path: &str, target: &str) -> CommandRes {
-        todo!()
+        let target_string = target.to_owned();
+        let target_path = path_target_to_target_path(&path, target);
+        let target = Target::from_str(&target_path, &self.blog_posts);
+        logging::log!("unknown: {}", target_string);
+        match target {
+            Target::Base | Target::Blog | Target::CV => CommandRes::Redirect(target_path),
+            Target::BlogPost(s) => CommandRes::Redirect(s),
+            Target::Index(s) => {
+                if target_string.ends_with("/") {
+                    CommandRes::Err(Arc::new(move || format!("not a directory: {}", target_string).into_any()))
+                } else {
+                    CommandRes::Redirect(s)
+                }
+            }
+            Target::MinesSh => {
+                if target_string.ends_with("/") {
+                    CommandRes::Err(Arc::new(move || format!("not a directory: {}", target_string).into_any()))
+                } else if target_string.contains("/") {
+                    CommandRes::Redirect(MINES_URL.to_string())
+                } else {
+                    CommandRes::Err(Arc::new(move || format!("command not found: {}\nhint: try 'mines' or '/mines.sh'", target_string).into_any()))
+                }
+            }
+            Target::ThanksTxt => {
+                if target_string.ends_with("/") {
+                    CommandRes::Err(Arc::new(move || format!("not a directory: {}", target_string).into_any()))
+                } else if target_string.contains("/") {
+                    CommandRes::Err(Arc::new(move || format!("permission denied: {}", target_string).into_any()))
+                } else {
+                    CommandRes::Err(Arc::new(move || format!("command not found: {}", target_string).into_any()))
+                }
+            }
+            Target::Invalid => CommandRes::Err(Arc::new(move || format!("command not found: {}", target_string).into_any())),
+        }
     }
 
     fn handle_ls(&self, path: &str, args: Vec<&str>) -> CommandRes {
@@ -203,6 +235,7 @@ This version of ls only supports option 'a'"#,
                         format!("cd: no such file or directory: {}", other).into_any()
                     }))
                 }
+                Target::BlogPost(s) => CommandRes::Redirect(s),
                 _ => CommandRes::Redirect(target_path),
             }
         } else {
@@ -298,6 +331,7 @@ fn blog_post_exists(name: &str, blog_posts: &[String]) -> bool {
     blog_posts.iter().find(|s| *s == name).is_some()
 }
 
+// TODO - refactor to file or directory & enum for each
 #[derive(Debug, Clone)]
 enum Target {
     Base,
@@ -321,13 +355,13 @@ impl Target {
             post if post.starts_with("/blog/") && blog_post_exists(post, blog_posts) => {
                 Self::BlogPost(path.to_string())
             }
-            "/index.rs" | "/blog/index.rs" | "/cv/index.rs" => Self::Index(path.to_string()),
+            "/index.rs" | "/blog/index.rs" | "/cv/index.rs" => Self::Index(path[..path.len() -LEN_OF_INDEX].to_string()),
             post_index
                 if post_index.starts_with("/blog/")
                     && post_index.ends_with("/index.rs")
-                    && blog_post_exists(&post_index[..post_index.len() - 9], blog_posts) =>
+                    && blog_post_exists(&post_index[..post_index.len() - LEN_OF_INDEX], blog_posts) =>
             {
-                Self::Index(path.to_string())
+                Self::Index(path[..path.len()-LEN_OF_INDEX].to_string())
             }
             _ => Self::Invalid,
         }
@@ -363,7 +397,6 @@ impl From<&str> for Command {
             "cat" => Self::Cat,
             "clear" => Self::Clear,
             "mines" => Self::Mines,
-            "mines.sh" => Self::Mines,
             _ => Self::Unknown,
         }
     }
