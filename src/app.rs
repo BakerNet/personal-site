@@ -66,7 +66,6 @@ fn HomePage() -> impl IntoView {
 #[component]
 fn BlogWrapper() -> impl IntoView {
     view! {
-        <Title formatter=|title| format!("Blog - {title}") />
         <h1 class="font-bold text-2xl text-center">"Blog"</h1>
         <Outlet />
     }
@@ -75,7 +74,7 @@ fn BlogWrapper() -> impl IntoView {
 #[component]
 fn BlogHome() -> impl IntoView {
     view! {
-        <Title text="Home" />
+        <Title text="Blog Home" />
         <div>TODO</div>
     }
 }

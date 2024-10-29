@@ -1,6 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use leptos::{html, prelude::*};
+use leptos_router::{
+    hooks::{use_location, use_navigate},
+    NavigateOptions,
+};
 
 use super::terminal::{CommandRes, Terminal};
 
@@ -33,7 +37,12 @@ pub fn Header() -> impl IntoView {
                 set_is_err(true);
                 set_text(Some(s));
             }
-            CommandRes::Redirect(_) => todo!(),
+            CommandRes::Redirect(s) => {
+                set_is_err(false);
+                set_text(None);
+                let navigate = use_navigate();
+                navigate(&s, NavigateOptions::default());
+            }
             CommandRes::Output(s) => {
                 set_is_err(false);
                 set_text(Some(s));
@@ -56,7 +65,20 @@ pub fn Header() -> impl IntoView {
                         }>"➜"</span>
                         " "
                         <a href="/">
-                            <span class="text-teal-400">"hansbaker.com"</span>
+                            <span class="text-teal-400">
+                                {move || {
+                                    let pathname = use_location().pathname.get();
+                                    let dir = pathname
+                                        .split("/")
+                                        .last()
+                                        .expect("There should be at least one / in path");
+                                    if dir == "" {
+                                        "hansbaker.com".to_string()
+                                    } else {
+                                        dir.to_string()
+                                    }
+                                }}
+                            </span>
                         </a>
                         " "
                         <a href="https://github.com/BakerNet/personal-site">
