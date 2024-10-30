@@ -59,6 +59,7 @@ impl Terminal {
             Command::Cat => self.handle_cat(path, parts.collect()),
             Command::Clear => CommandRes::Nothing,
             Command::Mines => CommandRes::Redirect(MINES_URL.to_string()),
+            Command::WhoAmI => CommandRes::Output(Arc::new(move || "user".into_any())),
             Command::Unknown => self.handle_unknown(path, cmd_text, parts.collect()),
         }
     }
@@ -179,21 +180,22 @@ This version of ls only supports option 'a'"#,
                 targets.iter().enumerate().map(|(i, (name, ts))| {
                     let is_invalid = matches!(ts, Target::Invalid);
                     view! {
-                        {if !is_invalid && last != 0 { format!("{}:\n", name) } else { "".to_string() }}
+                        {if !is_invalid && last != 0 {
+                            format!("{}:\n", name)
+                        } else {
+                            "".to_string()
+                        }}
                         {match ts {
                             Target::Dir(Dirs::Base) => base_ls_view(all),
                             Target::Dir(Dirs::Blog) => blog_ls_view(&posts, all),
                             Target::Dir(_) => empty_ls_view(all),
                             Target::File(f) => f.name().into_any(),
                             Target::Invalid => {
-                                format!(
-                                    "ls: cannot access '{}': No such file or directory",
-                                    name,
-                                )
+                                format!("ls: cannot access '{}': No such file or directory", name)
                                     .into_any()
                             }
                         }}
-                        {if i != last { if !is_invalid { "\n\n" } else { "\n" }} else {""}}
+                        {if i != last { if !is_invalid { "\n\n" } else { "\n" } } else { "" }}
                     } 
                 }).collect_view().into_any()
             }
@@ -285,7 +287,7 @@ This version of cat doesn't support any options"#,
                                 format!("cat: {}: No such file or directory", name).into_any()
                             }
                         }}
-                        {if i != last { "\n" } else {""}}
+                        {if i != last { "\n" } else { "" }}
                     } 
                 }).collect_view().into_any()
             }
@@ -479,6 +481,7 @@ enum Command {
     Cat,
     Clear,
     Mines,
+    WhoAmI,
     Unknown,
 }
 
@@ -492,6 +495,7 @@ impl From<&str> for Command {
             "cat" => Self::Cat,
             "clear" => Self::Clear,
             "mines" => Self::Mines,
+            "whoami" => Self::WhoAmI,
             _ => Self::Unknown,
         }
     }

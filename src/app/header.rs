@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use leptos::{ev::KeyboardEvent, html, prelude::*};
+use leptos::{either::Either, ev::KeyboardEvent, html, prelude::*};
 use leptos_router::{
     hooks::{use_location, use_navigate},
     NavigateOptions,
@@ -15,8 +15,68 @@ pub fn Header() -> impl IntoView {
     // TODO - fetch and store history in local storage
     let terminal = StoredValue::new(Arc::new(Mutex::new(Terminal::new(&blog_posts, None))));
     let input_ref = NodeRef::<html::Input>::new();
+    let (last_cmd, set_last_cmd) = signal(None::<ChildrenFn>);
     let (text, set_text) = signal(None::<ChildrenFn>);
     let (is_err, set_is_err) = signal(false);
+
+    let dir_from_pathname = |pathname: String| {
+        let dir = pathname
+            .split("/")
+            .last()
+            .expect("There should be at least one / in path");
+        if dir.is_empty() {
+            "hansbaker.com".to_string()
+        } else {
+            dir.to_string()
+        }
+    };
+
+    let ps1 = move |is_err: bool, path: &str, with_links: bool| {
+        view! {
+            <span class=move || {
+                if is_err { "text-red-500" } else { "text-green-500" }
+            }>"➜"</span>
+            " "
+            {if with_links {
+                Either::Left(
+                    view! {
+                        <a href="/">
+                            <span class="text-teal-400">{path.to_string()}</span>
+                        </a>
+                    },
+                )
+            } else {
+                Either::Right(view! { <span class="text-teal-400">{path.to_string()}</span> })
+            }}
+            " "
+
+            {if with_links {
+                Either::Left(
+                    view! {
+                        <a href="https://github.com/BakerNet/personal-site">
+                            <span class="text-blue-400">
+                                <span>"git:("</span>
+                                <span class="text-red-500">"main"</span>
+                                <span>")"</span>
+                            </span>
+                        </a>
+                    },
+                )
+            } else {
+                Either::Right(
+                    view! {
+                        <span class="text-blue-400">
+                            <span>"git:("</span>
+                            <span class="text-red-500">"main"</span>
+                            <span>")"</span>
+                        </span>
+                    },
+                )
+            }}
+            ""
+            <span class="text-yellow-400">"✗"</span>
+        }
+    };
 
     let handle_cmd = move |cmd: String| {
         let res = terminal.with_value(|t| {
@@ -28,6 +88,24 @@ pub fn Header() -> impl IntoView {
                 CommandRes::EmptyErr
             }
         });
+
+        let was_err = is_err.get_untracked();
+        let prev_pathname = use_location().pathname.get();
+        let prev_dir = dir_from_pathname(prev_pathname);
+
+        if cmd.trim() != "clear" {
+            set_last_cmd(Some(Arc::new(move || {
+                view! {
+                    {ps1(was_err, &prev_dir, false)}
+                    " "
+                    {cmd.to_string()}
+                }
+                .into_any()
+            })));
+        } else {
+            set_last_cmd(None);
+        }
+
         match res {
             CommandRes::EmptyErr => {
                 set_is_err(true);
@@ -86,6 +164,9 @@ pub fn Header() -> impl IntoView {
                     el.set_value("");
                 }
             }
+            "Tab" => {
+                // TODO
+            }
             _ => terminal.with_value(|t| {
                 t.lock()
                     .expect("should be able to access terminal")
@@ -99,37 +180,13 @@ pub fn Header() -> impl IntoView {
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4">
                 <div class="flex items-center justify-between">
                     <h1 class="text-2xl font-bold">
+                        {move || {
+                            let err = is_err.get();
+                            let pathname = use_location().pathname.get();
+                            let dir = dir_from_pathname(pathname);
+                            ps1(err, &dir, true)
+                        }}
 
-                        <span class=move || {
-                            if is_err() { "text-red-500" } else { "text-green-500" }
-                        }>"➜"</span>
-                        " "
-                        <a href="/">
-                            <span class="text-teal-400">
-                                {move || {
-                                    let pathname = use_location().pathname.get();
-                                    let dir = pathname
-                                        .split("/")
-                                        .last()
-                                        .expect("There should be at least one / in path");
-                                    if dir.is_empty() {
-                                        "hansbaker.com".to_string()
-                                    } else {
-                                        dir.to_string()
-                                    }
-                                }}
-                            </span>
-                        </a>
-                        " "
-                        <a href="https://github.com/BakerNet/personal-site">
-                            <span class="text-blue-400">
-                                <span>"git:("</span>
-                                <span class="text-red-500">"main"</span>
-                                <span>")"</span>
-                            </span>
-                        </a>
-                        ""
-                        <span class="text-yellow-400">"✗"</span>
                     </h1>
                     <form
                         class="flex-1 mx-4"
@@ -158,14 +215,22 @@ pub fn Header() -> impl IntoView {
                     <nav></nav>
                 </div>
                 {move || {
-                    text.get()
-                        .map(|s| {
+                    let text = text.get();
+                    let last_cmd = last_cmd.get();
+                    if text.is_none() && last_cmd.is_none() {
+                        None
+                    } else {
+                        Some(
                             view! {
                                 <div class="mt-2 mr-4 p-2 bg-gray-700 rounded-md">
-                                    <pre class="whitespace-pre-wrap">{s()}</pre>
+                                    <pre class="whitespace-pre-wrap">
+                                        {last_cmd.map(|s| { s() })} <br /> {text.map(|s| { s() })}
+
+                                    </pre>
                                 </div>
-                            }
-                        })
+                            },
+                        )
+                    }
                 }}
             </div>
         </header>
