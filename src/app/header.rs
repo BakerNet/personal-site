@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use leptos::{html, prelude::*};
+use leptos::{ev::KeyboardEvent, html, prelude::*};
 use leptos_router::{
     hooks::{use_location, use_navigate},
     NavigateOptions,
@@ -54,6 +54,46 @@ pub fn Header() -> impl IntoView {
         }
     };
 
+    let keydown_handler = move |ev: KeyboardEvent| {
+        let el = if let Some(el) = input_ref.get_untracked() {
+            el
+        } else {
+            set_is_err(true);
+            return;
+        };
+        match ev.key().as_ref() {
+            "ArrowUp" => {
+                ev.prevent_default();
+                let new_text = terminal.with_value(|t| {
+                    t.lock()
+                        .expect("should be able to access terminal")
+                        .handle_up()
+                });
+                if let Some(nt) = new_text {
+                    el.set_value(&nt);
+                }
+            }
+            "ArrowDown" => {
+                ev.prevent_default();
+                let new_text = terminal.with_value(|t| {
+                    t.lock()
+                        .expect("should be able to access terminal")
+                        .handle_down()
+                });
+                if let Some(nt) = new_text {
+                    el.set_value(&nt);
+                } else {
+                    el.set_value("");
+                }
+            }
+            _ => terminal.with_value(|t| {
+                t.lock()
+                    .expect("should be able to access terminal")
+                    .reset_pointer();
+            }),
+        }
+    };
+
     view! {
         <header class="bg-gray-800 shadow">
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -72,7 +112,7 @@ pub fn Header() -> impl IntoView {
                                         .split("/")
                                         .last()
                                         .expect("There should be at least one / in path");
-                                    if dir == "" {
+                                    if dir.is_empty() {
                                         "hansbaker.com".to_string()
                                     } else {
                                         dir.to_string()
@@ -108,6 +148,7 @@ pub fn Header() -> impl IntoView {
                         <div class="relative">
                             <input
                                 node_ref=input_ref
+                                on:keydown=keydown_handler
                                 type="text"
                                 placeholder="Type a command (try 'help')"
                                 class="w-full px-4 py-2 rounded-md border border-gray-700 bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
