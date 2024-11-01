@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use leptos::{either::Either, ev::KeyboardEvent, html, prelude::*};
+use leptos::{either::Either, ev::KeyboardEvent, html, logging, prelude::*};
 use leptos_router::{
     hooks::{use_location, use_navigate},
     NavigateOptions,
@@ -18,6 +18,7 @@ pub fn Header() -> impl IntoView {
     let (last_cmd, set_last_cmd) = signal(None::<ChildrenFn>);
     let (text, set_text) = signal(None::<ChildrenFn>);
     let (is_err, set_is_err) = signal(false);
+    let (tab_state, set_tab_state) = signal(None::<(Vec<String>, usize)>);
 
     let dir_from_pathname = |pathname: String| {
         let dir = pathname
@@ -165,7 +166,28 @@ pub fn Header() -> impl IntoView {
                 }
             }
             "Tab" => {
-                // TODO
+                if let Some((opts, pointer)) = tab_state.get_untracked() {
+                    ev.prevent_default();
+                    // todo
+                } else {
+                    let val = el.value();
+                    if val == "" {
+                        return;
+                    }
+                    let path = if let Some(p) = location_pathname() {
+                        p
+                    } else {
+                        return;
+                    };
+                    ev.prevent_default();
+                    let opts = terminal.with_value(|t| {
+                        t.lock()
+                            .expect("should be able to access terminal")
+                            .handle_tab(&path, &val)
+                    });
+                    logging::log!("{:?}", opts);
+                    // todo
+                }
             }
             _ => terminal.with_value(|t| {
                 t.lock()

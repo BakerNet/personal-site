@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::Arc};
 
-use leptos::{logging, prelude::*};
+use leptos::{prelude::*};
 
 pub struct Terminal {
     blog_posts: Vec<String>,
@@ -37,11 +37,11 @@ impl Terminal {
         }
     }
 
-    pub fn handle_command(&mut self, path: &str, cmd: &str) -> CommandRes {
-        self.history.push(cmd.to_string());
+    pub fn handle_command(&mut self, path: &str, input: &str) -> CommandRes {
+        self.history.push(input.to_string());
         self.reset_pointer();
 
-        let mut parts = cmd.split_whitespace();
+        let mut parts = input.split_whitespace();
         let cmd_text = if let Some(word) = parts.next() {
             word
         } else {
@@ -61,6 +61,26 @@ impl Terminal {
             Command::Mines => CommandRes::Redirect(MINES_URL.to_string()),
             Command::WhoAmI => CommandRes::Output(Arc::new(move || "user".into_any())),
             Command::Unknown => self.handle_unknown(path, cmd_text, parts.collect()),
+        }
+    }
+
+    pub fn handle_tab(&mut self, path: &str, input: &str) -> Vec<String> {
+        let mut parts = input.split_whitespace();
+        let cmd_text = if let Some(word) = parts.next() {
+            word
+        } else {
+            return Vec::new()
+        };
+        let cmd = Command::from(cmd_text);
+        let mut parts = parts.peekable();
+        match cmd {
+            Command::Unknown if parts.peek().is_none() && !input.ends_with(" ") => if cmd_text.contains("/") {
+                self.tab_opts(path, cmd_text)
+            } else {
+                self.tab_commands(cmd_text)
+            },
+            _ if parts.peek().is_none() && !input.ends_with(" ") => Vec::new(),
+            _ => self.tab_opts(path, parts.last().unwrap_or_default())
         }
     }
 
@@ -97,7 +117,6 @@ impl Terminal {
             // only mines.sh and index.rs are executable, so only these can accept arguments
             return CommandRes::Err(Arc::new(move || format!("command not found: {}", target_string).into_any()));
         }
-        logging::log!("unknown: {}", target_string);
         match target {
             Target::Dir(_) => CommandRes::Redirect(target_path),
             Target::File(f) => {
@@ -298,6 +317,29 @@ This version of cat doesn't support any options"#,
             CommandRes::Output(Arc::new(callback))
         }
     }
+
+    fn tab_opts(&self, path: &str, target_path: &str) -> Vec<String> {
+        let no_prefix = target_path.ends_with("/") || target_path.is_empty();
+        let target_path = path_target_to_target_path(path, target_path);
+        let (target_path, prefix) = if no_prefix {
+            (target_path.as_ref(), "")
+        } else if let Some(pos) = target_path.rfind("/") {
+            let new_target_path = &target_path[..pos];
+            let new_target_path = if new_target_path == "" {"/"} else {new_target_path};
+            (new_target_path, &target_path[pos+1..])
+        } else {
+            return Vec::new()
+        };
+        let target = Target::from_str(target_path, &self.blog_posts);
+        match target {
+            Target::Dir(d) => d.contents(&self.blog_posts).into_iter().filter(|s| s.starts_with(prefix) && s != prefix).collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn tab_commands(&self, cmd_text: &str) -> Vec<String> {
+        Command::all().into_iter().filter(|s| s.starts_with(cmd_text)).map(|s| s.to_string()).collect()
+    }
 }
 
 fn path_target_to_target_path(path: &str, target: &str) -> String {
@@ -330,8 +372,6 @@ fn path_target_to_target_path(path: &str, target: &str) -> String {
             other => parts.push(other),
         }
     }
-    logging::log!("parts: {:?}", parts);
-    logging::log!("target: {:?}", target);
     format!("/{}", parts.join("/"))
 }
 
@@ -383,7 +423,6 @@ fn blog_post_exists(name: &str, blog_posts: &[String]) -> bool {
     } else {
         name
     };
-    logging::log!("checking for blog_post: {}", name);
     blog_posts.iter().any(|s| *s == name)
 }
 
@@ -393,6 +432,22 @@ enum Dirs {
     Blog,
     CV,
     BlogPost,
+}
+
+impl Dirs {
+    fn contents(&self, blog_posts: &[String]) -> Vec<String> {
+        let index = "index.rs".to_string();
+        match self {
+            Dirs::Base => vec!["blog".to_string(), "cv".to_string(), index, "mines.sh".to_string(), "thanks.txt".to_string()],
+            Dirs::Blog => {
+                let mut posts = blog_posts.to_owned();
+                posts.push(index);
+                posts
+            },
+            Dirs::CV => vec![index],
+            Dirs::BlogPost => vec![index],
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -498,5 +553,11 @@ impl From<&str> for Command {
             "whoami" => Self::WhoAmI,
             _ => Self::Unknown,
         }
+    }
+}
+
+impl Command {
+    fn all() -> Vec<&'static str> {
+        vec!["help", "pwd", "ls", "cd", "cat", "clear", "mines", "whoami"]
     }
 }
