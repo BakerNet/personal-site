@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::Arc};
 
-use leptos::{prelude::*};
+use leptos::{either::*, prelude::*};
 
 pub struct Terminal {
     blog_posts: Vec<String>,
@@ -80,6 +80,7 @@ impl Terminal {
                 self.tab_commands(cmd_text)
             },
             _ if parts.peek().is_none() && !input.ends_with(" ") => Vec::new(),
+            Command::Cd => self.tab_opts(path, parts.last().unwrap_or_default()).into_iter().filter(|s| s.ends_with("/")).collect(),
             _ => self.tab_opts(path, parts.last().unwrap_or_default())
         }
     }
@@ -112,7 +113,7 @@ impl Terminal {
         let target_string = target.to_owned();
         let target_path = path_target_to_target_path(path, target);
         let target = Target::from_str(&target_path, &self.blog_posts);
-        let is_executable = matches!(target, Target::File(Files::MinesSh | Files::Index(_))) && target_string.contains("/"); 
+        let is_executable = matches!(target, Target::File(File::MinesSh | File::Index(_))) && target_string.contains("/"); 
         if !args.is_empty() && !is_executable {
             // only mines.sh and index.rs are executable, so only these can accept arguments
             return CommandRes::Err(Arc::new(move || format!("command not found: {}", target_string).into_any()));
@@ -124,17 +125,17 @@ impl Terminal {
                     return CommandRes::Err(Arc::new(move || format!("not a directory: {}", target_string).into_any()));
                 }
                 match f {
-                    Files::Index(s) => {
+                    File::Index(s) => {
                         CommandRes::Redirect(s)
                     }
-                    Files::MinesSh => {
+                    File::MinesSh => {
                         if is_executable {
                             CommandRes::Redirect(MINES_URL.to_string())
                         } else {
                             CommandRes::Err(Arc::new(move || format!("command not found: {}\nhint: try 'mines' or '/mines.sh'", target_string).into_any()))
                         }
                     }
-                    Files::ThanksTxt => {
+                    File::ThanksTxt => {
                         if target_string.contains("/") {
                             CommandRes::Err(Arc::new(move || format!("permission denied: {}", target_string).into_any()))
                         } else {
@@ -205,9 +206,10 @@ This version of ls only supports option 'a'"#,
                             "".to_string()
                         }}
                         {match ts {
-                            Target::Dir(Dirs::Base) => base_ls_view(all),
-                            Target::Dir(Dirs::Blog) => blog_ls_view(&posts, all),
-                            Target::Dir(_) => empty_ls_view(all),
+                            Target::Dir(d) => LsView(LsViewProps {
+                                items: d.contents(&posts, all),
+                                base: d.base(),
+                            }).into_any(),
                             Target::File(f) => f.name().into_any(),
                             Target::Invalid => {
                                 format!("ls: cannot access '{}': No such file or directory", name)
@@ -325,14 +327,14 @@ This version of cat doesn't support any options"#,
             (target_path.as_ref(), "")
         } else if let Some(pos) = target_path.rfind("/") {
             let new_target_path = &target_path[..pos];
-            let new_target_path = if new_target_path == "" {"/"} else {new_target_path};
+            let new_target_path = if new_target_path.is_empty() {"/"} else {new_target_path};
             (new_target_path, &target_path[pos+1..])
         } else {
             return Vec::new()
         };
         let target = Target::from_str(target_path, &self.blog_posts);
         match target {
-            Target::Dir(d) => d.contents(&self.blog_posts).into_iter().filter(|s| s.starts_with(prefix) && s != prefix).collect(),
+            Target::Dir(d) => d.contents(&self.blog_posts, false).into_iter().filter(|s| s.starts_with(prefix) && s != prefix).collect(),
             _ => Vec::new(),
         }
     }
@@ -375,46 +377,26 @@ fn path_target_to_target_path(path: &str, target: &str) -> String {
     format!("/{}", parts.join("/"))
 }
 
-fn base_ls_view(all: bool) -> AnyView {
+#[component]
+fn LsView(items: Vec<String>, base: String) -> impl IntoView {
     let dir_class = "text-blue-400";
-    view! {
-        {if all { ".  ..  " } else { "" }}
-        <a href="/blog" class=dir_class>
-            "blog"
-        </a>
-        "  "
-        <a href="/cv" class=dir_class>
-            "cv"
-        </a>
-        "  index.rs  mines.sh  thanks.txt"
-    }.into_any()
-}
-
-fn empty_ls_view(all: bool) -> AnyView {
-    if all {
-        ".  ..  index.rs".into_any()
+    let inner = items.into_iter().map(|s| if s.ends_with("/") {
+        let s = s[..s.len()-1].to_string();
+        let base = if base == "/" {
+            ""
+        } else {
+            &base
+        };
+        EitherOf4::A(view! {<a href=format!("{}/{}", base.to_owned(), s) class=dir_class>{s.clone()}</a>"  "})
+    } else if s == "." {
+        EitherOf4::B(view! {<a href=base.clone() class=dir_class>"."</a>"  "})
+    } else if s == ".." {
+        let path = path_target_to_target_path(&base, "..");
+        EitherOf4::C(view! {<a href=path class=dir_class>".."</a>"  "})
     } else {
-        "index.rs".into_any()
-    }
-}
-
-fn blog_ls_view(blog_posts: &[String], all: bool) -> AnyView {
-    let dir_class = "text-blue-400";
-    view! {
-        {if all { ".  ..  " } else { "" }}
-        {blog_posts
-            .iter()
-            .map(|title| {
-                view! {
-                    <a href=format!("/blog/{}", title) class=dir_class>
-                        "first_post"
-                    </a>
-                    "  "
-                }
-            })
-            .collect_view()}
-        "index.rs"
-    }.into_any()
+        EitherOf4::D(view!{<span>{s}</span>"  "})
+    }).collect_view();
+    view!{ <div>{inner}</div> }
 }
 
 fn blog_post_exists(name: &str, blog_posts: &[String]) -> bool {
@@ -427,50 +409,69 @@ fn blog_post_exists(name: &str, blog_posts: &[String]) -> bool {
 }
 
 #[derive(Debug, Clone)]
-enum Dirs {
+enum Dir {
     Base,
     Blog,
     CV,
-    BlogPost,
+    BlogPost(String),
 }
 
-impl Dirs {
-    fn contents(&self, blog_posts: &[String]) -> Vec<String> {
-        let index = "index.rs".to_string();
+impl Dir {
+    fn contents(&self, blog_posts: &[String], all: bool) -> Vec<String> {
+        let mut common = if all {
+            vec![".".to_string(), "..".to_string(), "index.rs".to_string()]
+        } else {
+            vec!["index.rs".to_string()]
+        };
         match self {
-            Dirs::Base => vec!["blog".to_string(), "cv".to_string(), index, "mines.sh".to_string(), "thanks.txt".to_string()],
-            Dirs::Blog => {
-                let mut posts = blog_posts.to_owned();
-                posts.push(index);
+            Dir::Base => {
+                let mut items = vec!["blog/".to_string(), "cv/".to_string(), "mines.sh".to_string(), "thanks.txt".to_string()];
+                items.append(&mut common);
+                items.sort();
+                items
+            }
+            Dir::Blog => {
+                let mut posts = blog_posts.iter().map(|bp| format!("{}/", bp)).collect::<Vec<_>>();
+                posts.append(&mut common);
+                posts.sort();
                 posts
             },
-            Dirs::CV => vec![index],
-            Dirs::BlogPost => vec![index],
+            Dir::CV => common,
+            Dir::BlogPost(_) => common,
+        }
+    }
+
+    fn base(&self) -> String {
+        match self {
+            Dir::Base => "/".into(),
+            Dir::Blog => "/blog".into(),
+            Dir::CV => "/cv".into(),
+            Dir::BlogPost(s) => format!("/blog/{}", s),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-enum Files {
+enum File {
     MinesSh,
     ThanksTxt,
     Index(String)
 }
 
-impl Files {
+impl File {
     fn name(&self) -> &'static str {
         match self {
-            Files::MinesSh => "mines.sh",
-            Files::ThanksTxt => "thanks.txt",
-            Files::Index(_) => "index.rs",
+            File::MinesSh => "mines.sh",
+            File::ThanksTxt => "thanks.txt",
+            File::Index(_) => "index.rs",
         }
     }
 
     fn contents(&self) -> String {
         match self {
-            Files::MinesSh => MINES_SH.to_string(),
-            Files::ThanksTxt => THANKS_TXT.to_string(),
-            Files::Index(s) => {
+            File::MinesSh => MINES_SH.to_string(),
+            File::ThanksTxt => THANKS_TXT.to_string(),
+            File::Index(s) => {
                 let s = if s.is_empty() {"/"} else{s};
                 format!(r#"use leptos::prelude::*;
 use leptos_router::{{hooks::use_navigate, UseNavigateOptions}};
@@ -490,30 +491,30 @@ func main() {{
 // TODO - refactor to file or directory & enum for each
 #[derive(Debug, Clone)]
 enum Target {
-    Dir(Dirs),
-    File(Files),
+    Dir(Dir),
+    File(File),
     Invalid,
 }
 
 impl Target {
     fn from_str(path: &str, blog_posts: &[String]) -> Self {
         match path {
-            "/" => Self::Dir(Dirs::Base),
-            "/blog" => Self::Dir(Dirs::Blog),
-            "/cv" => Self::Dir(Dirs::CV),
+            "/" => Self::Dir(Dir::Base),
+            "/blog" => Self::Dir(Dir::Blog),
+            "/cv" => Self::Dir(Dir::CV),
             post if post.starts_with("/blog/") && blog_post_exists(post, blog_posts) => {
-                // let blog_post_name = post.split("/").last().expect("all blog posts should contain a /");
-                Self::Dir(Dirs::BlogPost)
+                let blog_post_name = post.split("/").last().expect("all blog posts should contain a /");
+                Self::Dir(Dir::BlogPost(blog_post_name.to_string()))
             }
-            "/mines.sh" => Self::File(Files::MinesSh),
-            "/thanks.txt" => Self::File(Files::ThanksTxt),
-            "/index.rs" | "/blog/index.rs" | "/cv/index.rs" => Self::File(Files::Index(path[..path.len() -LEN_OF_INDEX].to_string())),
+            "/mines.sh" => Self::File(File::MinesSh),
+            "/thanks.txt" => Self::File(File::ThanksTxt),
+            "/index.rs" | "/blog/index.rs" | "/cv/index.rs" => Self::File(File::Index(path[..path.len() -LEN_OF_INDEX].to_string())),
             post_index
                 if post_index.starts_with("/blog/")
                     && post_index.ends_with("/index.rs")
                     && blog_post_exists(&post_index[..post_index.len() - LEN_OF_INDEX], blog_posts) =>
             {
-                Self::File(Files::Index(path[..path.len()-LEN_OF_INDEX].to_string()))
+                Self::File(File::Index(path[..path.len()-LEN_OF_INDEX].to_string()))
             }
             _ => Self::Invalid,
         }

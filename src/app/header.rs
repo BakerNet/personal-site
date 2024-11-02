@@ -18,6 +18,7 @@ pub fn Header() -> impl IntoView {
     let (last_cmd, set_last_cmd) = signal(None::<ChildrenFn>);
     let (text, set_text) = signal(None::<ChildrenFn>);
     let (is_err, set_is_err) = signal(false);
+    let (is_tabbing, set_is_tabbing) = signal(false);
     let (tab_state, set_tab_state) = signal(None::<(Vec<String>, usize)>);
 
     let dir_from_pathname = |pathname: String| {
@@ -133,6 +134,18 @@ pub fn Header() -> impl IntoView {
         }
     };
 
+    let tab_replace = move |val: &str, new: &str| {
+        if let Some(i) = val.rfind("/") {
+            let prefix = &val[..i + 1];
+            format!("{}{}", prefix, new)
+        } else if let Some(i) = val.rfind(" ") {
+            let prefix = &val[..i + 1];
+            format!("{}{}", prefix, new)
+        } else {
+            new.to_string()
+        }
+    };
+
     let keydown_handler = move |ev: KeyboardEvent| {
         let el = if let Some(el) = input_ref.get_untracked() {
             el
@@ -140,8 +153,12 @@ pub fn Header() -> impl IntoView {
             set_is_err(true);
             return;
         };
+
         match ev.key().as_ref() {
             "ArrowUp" => {
+                if is_tabbing.get_untracked() {
+                    set_is_tabbing(false);
+                }
                 ev.prevent_default();
                 let new_text = terminal.with_value(|t| {
                     t.lock()
@@ -153,6 +170,9 @@ pub fn Header() -> impl IntoView {
                 }
             }
             "ArrowDown" => {
+                if is_tabbing.get_untracked() {
+                    set_is_tabbing(false);
+                }
                 ev.prevent_default();
                 let new_text = terminal.with_value(|t| {
                     t.lock()
@@ -166,12 +186,12 @@ pub fn Header() -> impl IntoView {
                 }
             }
             "Tab" => {
-                if let Some((opts, pointer)) = tab_state.get_untracked() {
+                if is_tabbing.get_untracked() {
                     ev.prevent_default();
                     // todo
                 } else {
                     let val = el.value();
-                    if val == "" {
+                    if val.is_empty() {
                         return;
                     }
                     let path = if let Some(p) = location_pathname() {
@@ -186,10 +206,22 @@ pub fn Header() -> impl IntoView {
                             .handle_tab(&path, &val)
                     });
                     logging::log!("{:?}", opts);
+                    if opts.len() == 0 {
+                        return;
+                    };
+                    if opts.len() == 1 {
+                        let new = tab_replace(&val, &opts[0]);
+                        el.set_value(&new);
+                        return;
+                    }
+                    set_is_tabbing(true)
                     // todo
                 }
             }
             _ => terminal.with_value(|t| {
+                if is_tabbing.get_untracked() {
+                    set_is_tabbing(false);
+                }
                 t.lock()
                     .expect("should be able to access terminal")
                     .reset_pointer();
