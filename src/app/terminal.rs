@@ -1,6 +1,7 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use leptos::{either::*, prelude::*};
+use leptos_router::components::*;
 
 pub struct Terminal {
     blog_posts: Vec<String>,
@@ -111,7 +112,7 @@ impl Terminal {
 
     fn handle_unknown(&self, path: &str, target: &str, args: Vec<&str>) -> CommandRes {
         let target_string = target.to_owned();
-        let target_path = path_target_to_target_path(path, target);
+        let target_path = path_target_to_target_path(path, target, false);
         let target = Target::from_str(&target_path, &self.blog_posts);
         let is_executable = matches!(target, Target::File(File::MinesSh | File::Index(_))) && target_string.contains("/"); 
         if !args.is_empty() && !is_executable {
@@ -184,7 +185,7 @@ This version of ls only supports option 'a'"#,
             (Vec::new(), false), 
             |(mut ts, is_err), tp| {
                 let target_string = tp.to_owned();
-                let target_path = path_target_to_target_path(path, tp);
+                let target_path = path_target_to_target_path(path, tp, false);
                 let target = Target::from_str(&target_path, &self.blog_posts);
                 let is_err = is_err || matches!(target, Target::Invalid);
                 ts.push((target_string, target));
@@ -206,10 +207,13 @@ This version of ls only supports option 'a'"#,
                             "".to_string()
                         }}
                         {match ts {
-                            Target::Dir(d) => LsView(LsViewProps {
-                                items: d.contents(&posts, all),
-                                base: d.base(),
-                            }).into_any(),
+                            Target::Dir(d) => {
+                                LsView(LsViewProps {
+                                        items: d.contents(&posts, all),
+                                        base: d.base(),
+                                    })
+                                    .into_any()
+                            }
                             Target::File(f) => f.name().into_any(),
                             Target::Invalid => {
                                 format!("ls: cannot access '{}': No such file or directory", name)
@@ -232,7 +236,7 @@ This version of ls only supports option 'a'"#,
         if args.len() < 2 {
             let target_path = if args.is_empty() { "/" } else { args[0] };
             let target_string = target_path.to_owned();
-            let target_path = path_target_to_target_path(path, target_path);
+            let target_path = path_target_to_target_path(path, target_path, false);
             let target = Target::from_str(&target_path, &self.blog_posts);
             if target_path == path {
                 return CommandRes::Nothing;
@@ -288,7 +292,7 @@ This version of cat doesn't support any options"#,
             (Vec::new(), false), 
             |(mut ts, is_err), tp| {
                 let target_string = tp.to_owned();
-                let target_path = path_target_to_target_path(path, tp);
+                let target_path = path_target_to_target_path(path, tp, false);
                 let target = Target::from_str(&target_path, &self.blog_posts);
                 let is_err = is_err || matches!(target, Target::Invalid | Target::Dir(_)) || target_string.ends_with("/");
                 ts.push((target_string, target));
@@ -322,7 +326,7 @@ This version of cat doesn't support any options"#,
 
     fn tab_opts(&self, path: &str, target_path: &str) -> Vec<String> {
         let no_prefix = target_path.ends_with("/") || target_path.is_empty();
-        let target_path = path_target_to_target_path(path, target_path);
+        let target_path = path_target_to_target_path(path, target_path, true);
         let (target_path, prefix) = if no_prefix {
             (target_path.as_ref(), "")
         } else if let Some(pos) = target_path.rfind("/") {
@@ -334,7 +338,7 @@ This version of cat doesn't support any options"#,
         };
         let target = Target::from_str(target_path, &self.blog_posts);
         match target {
-            Target::Dir(d) => d.contents(&self.blog_posts, false).into_iter().filter(|s| s.starts_with(prefix) && s != prefix).collect(),
+            Target::Dir(d) => d.contents(&self.blog_posts, prefix.starts_with(".")).into_iter().filter(|s| s.starts_with(prefix) && s != prefix).collect(),
             _ => Vec::new(),
         }
     }
@@ -344,8 +348,9 @@ This version of cat doesn't support any options"#,
     }
 }
 
-fn path_target_to_target_path(path: &str, target: &str) -> String {
+fn path_target_to_target_path(path: &str, target: &str, preserve_dot: bool) -> String {
     let mut target = target;
+    let ends_with_dot = target.ends_with(".");
     let mut parts = path.split("/").filter(|s| !s.is_empty()).collect::<Vec<_>>();
     while target.starts_with("./") {
         target = &target[2..];
@@ -364,6 +369,9 @@ fn path_target_to_target_path(path: &str, target: &str) -> String {
         .split("/")
         .filter(|s| !s.is_empty() && *s != ".")
         .collect::<VecDeque<_>>();
+    if ends_with_dot && preserve_dot {
+        target.push_back(".");
+    }
     while !target.is_empty() {
         let p = target.pop_front().unwrap();
         match p {
@@ -387,16 +395,35 @@ fn LsView(items: Vec<String>, base: String) -> impl IntoView {
         } else {
             &base
         };
-        EitherOf4::A(view! {<a href=format!("{}/{}", base.to_owned(), s) class=dir_class>{s.clone()}</a>"  "})
-    } else if s == "." {
-        EitherOf4::B(view! {<a href=base.clone() class=dir_class>"."</a>"  "})
-    } else if s == ".." {
-        let path = path_target_to_target_path(&base, "..");
-        EitherOf4::C(view! {<a href=path class=dir_class>".."</a>"  "})
+        EitherOf4::A(view! {
+            <A href=format!("{}/{}", base.to_owned(), s) attr:class=dir_class>
+                {s.clone()}
+            </A>
+            "  "
+        })
+    } else if s == "./" {
+        EitherOf4::B(view! {
+            <A href=base.clone() attr:class=dir_class>
+                "."
+            </A>
+            "  "
+        })
+    } else if s == "../" {
+        let path = path_target_to_target_path(&base, "..", false);
+        EitherOf4::C(view! {
+            <A href=path attr:class=dir_class>
+                ".."
+            </A>
+            "  "
+        })
     } else {
-        EitherOf4::D(view!{<span>{s}</span>"  "})
+        EitherOf4::D(view! {
+            <span>{s}</span>
+            "  "
+        })
     }).collect_view();
-    view!{ <div>{inner}</div> }
+    // TODO - calculate columns and pad with empty space
+    view! { <div>{inner}</div> }
 }
 
 fn blog_post_exists(name: &str, blog_posts: &[String]) -> bool {
@@ -419,7 +446,7 @@ enum Dir {
 impl Dir {
     fn contents(&self, blog_posts: &[String], all: bool) -> Vec<String> {
         let mut common = if all {
-            vec![".".to_string(), "..".to_string(), "index.rs".to_string()]
+            vec!["./".to_string(), "../".to_string(), "index.rs".to_string()]
         } else {
             vec!["index.rs".to_string()]
         };
@@ -428,12 +455,20 @@ impl Dir {
                 let mut items = vec!["blog/".to_string(), "cv/".to_string(), "mines.sh".to_string(), "thanks.txt".to_string()];
                 items.append(&mut common);
                 items.sort();
+                if all {
+                    // './' should come before '../'
+                    items.swap(0,1);
+                }
                 items
             }
             Dir::Blog => {
                 let mut posts = blog_posts.iter().map(|bp| format!("{}/", bp)).collect::<Vec<_>>();
                 posts.append(&mut common);
                 posts.sort();
+                if all {
+                    // './' should come before '../'
+                    posts.swap(0,1);
+                }
                 posts
             },
             Dir::CV => common,

@@ -1,17 +1,43 @@
 use std::sync::{Arc, Mutex};
 
-use leptos::{either::Either, ev::KeyboardEvent, html, logging, prelude::*};
+use leptos::{either::Either, ev::KeyboardEvent, html, prelude::*};
 use leptos_router::{
+    components::*,
     hooks::{use_location, use_navigate},
     NavigateOptions,
 };
 
 use super::terminal::{CommandRes, Terminal};
 
+#[derive(Debug, Clone)]
+struct TabState {
+    cursor: usize,
+    opts: Arc<Vec<String>>,
+    index: Option<usize>,
+}
+
 #[component]
 pub fn Header() -> impl IntoView {
     // TODO - actually get blog posts
-    let blog_posts = vec!["first_post".to_string()];
+    let blog_posts = vec![
+        "first_post".to_string(),
+        "second_post".to_string(),
+        "third_post".to_string(),
+        "fourth_post".to_string(),
+        "fifth_post".to_string(),
+        "sixth_with_long_name_post".to_string(),
+        "seventh_with_also_long_name_post".to_string(),
+        "eighth_post".to_string(),
+        "ninth_post".to_string(),
+        "tenth_post".to_string(),
+        "eleventh_post".to_string(),
+        "twelfth_woohoo_post".to_string(),
+        "thirteenth_post".to_string(),
+        "fourteenth_with_the_longest_name_post".to_string(),
+        "fifteenth_post".to_string(),
+        "sixteenth_post".to_string(),
+        "last_post".to_string(),
+    ];
     // TODO - fetch and store history in local storage
     let terminal = StoredValue::new(Arc::new(Mutex::new(Terminal::new(&blog_posts, None))));
     let input_ref = NodeRef::<html::Input>::new();
@@ -19,7 +45,7 @@ pub fn Header() -> impl IntoView {
     let (text, set_text) = signal(None::<ChildrenFn>);
     let (is_err, set_is_err) = signal(false);
     let (is_tabbing, set_is_tabbing) = signal(false);
-    let (tab_state, set_tab_state) = signal(None::<(Vec<String>, usize)>);
+    let (tab_state, set_tab_state) = signal(None::<TabState>);
 
     let dir_from_pathname = |pathname: String| {
         let dir = pathname
@@ -40,13 +66,14 @@ pub fn Header() -> impl IntoView {
             }>"➜"</span>
             " "
             {if with_links {
-                Either::Left(
+                Either::Left({
+                    let path = path.to_string();
                     view! {
-                        <a href="/">
-                            <span class="text-teal-400">{path.to_string()}</span>
-                        </a>
-                    },
-                )
+                        <A href="/" attr:class="text-teal-400">
+                            {path}
+                        </A>
+                    }
+                })
             } else {
                 Either::Right(view! { <span class="text-teal-400">{path.to_string()}</span> })
             }}
@@ -55,13 +82,13 @@ pub fn Header() -> impl IntoView {
             {if with_links {
                 Either::Left(
                     view! {
-                        <a href="https://github.com/BakerNet/personal-site">
+                        <A href="https://github.com/BakerNet/personal-site">
                             <span class="text-blue-400">
                                 <span>"git:("</span>
                                 <span class="text-red-500">"main"</span>
                                 <span>")"</span>
                             </span>
-                        </a>
+                        </A>
                     },
                 )
             } else {
@@ -147,6 +174,9 @@ pub fn Header() -> impl IntoView {
     };
 
     let keydown_handler = move |ev: KeyboardEvent| {
+        if ev.meta_key() || ev.alt_key() || ev.ctrl_key() {
+            return;
+        }
         let el = if let Some(el) = input_ref.get_untracked() {
             el
         } else {
@@ -158,6 +188,7 @@ pub fn Header() -> impl IntoView {
             "ArrowUp" => {
                 if is_tabbing.get_untracked() {
                     set_is_tabbing(false);
+                    set_tab_state(None);
                 }
                 ev.prevent_default();
                 let new_text = terminal.with_value(|t| {
@@ -172,6 +203,7 @@ pub fn Header() -> impl IntoView {
             "ArrowDown" => {
                 if is_tabbing.get_untracked() {
                     set_is_tabbing(false);
+                    set_tab_state(None);
                 }
                 ev.prevent_default();
                 let new_text = terminal.with_value(|t| {
@@ -187,8 +219,29 @@ pub fn Header() -> impl IntoView {
             }
             "Tab" => {
                 if is_tabbing.get_untracked() {
+                    let val = el.value();
+                    if val.is_empty() {
+                        return;
+                    }
                     ev.prevent_default();
-                    // todo
+                    let TabState {
+                        cursor,
+                        opts,
+                        index,
+                    } = tab_state
+                        .get_untracked()
+                        .expect("is tabbing but no tab state");
+                    let new_index = match index {
+                        None => 0,
+                        Some(i) => (i + 1) % opts.len(),
+                    };
+                    let new = tab_replace(&val[..cursor], &opts[new_index]);
+                    el.set_value(&new);
+                    set_tab_state(Some(TabState {
+                        cursor,
+                        opts,
+                        index: Some(new_index),
+                    }));
                 } else {
                     let val = el.value();
                     if val.is_empty() {
@@ -205,8 +258,7 @@ pub fn Header() -> impl IntoView {
                             .expect("should be able to access terminal")
                             .handle_tab(&path, &val)
                     });
-                    logging::log!("{:?}", opts);
-                    if opts.len() == 0 {
+                    if opts.is_empty() {
                         return;
                     };
                     if opts.len() == 1 {
@@ -214,18 +266,51 @@ pub fn Header() -> impl IntoView {
                         el.set_value(&new);
                         return;
                     }
-                    set_is_tabbing(true)
-                    // todo
+                    set_is_tabbing(true);
+                    let cursor = val.len();
+                    set_tab_state(Some(TabState {
+                        cursor,
+                        opts: opts.into(),
+                        index: None,
+                    }));
                 }
             }
             _ => terminal.with_value(|t| {
                 if is_tabbing.get_untracked() {
                     set_is_tabbing(false);
+                    set_tab_state(None);
                 }
                 t.lock()
                     .expect("should be able to access terminal")
                     .reset_pointer();
             }),
+        }
+    };
+
+    let auto_comp_item = |s: &str, active: bool| {
+        let is_dir = s.ends_with("/");
+        let s = if !active && is_dir {
+            s[..s.len() - 1].to_string()
+        } else {
+            s.to_owned()
+        };
+        view! {
+            <span class=if active {
+                "bg-gray-200 text-gray-900"
+            } else {
+                ""
+            }>
+                {if !active && is_dir {
+                    Either::Left(
+                        view! {
+                            <span class="text-blue-400">{s}</span>
+                            "/"
+                        },
+                    )
+                } else {
+                    Either::Right(s)
+                }}
+            </span>
         }
     };
 
@@ -271,14 +356,39 @@ pub fn Header() -> impl IntoView {
                 {move || {
                     let text = text.get();
                     let last_cmd = last_cmd.get();
-                    if text.is_none() && last_cmd.is_none() {
+                    let tab_state = tab_state.get();
+                    if text.is_none() && last_cmd.is_none() && tab_state.is_none() {
                         None
                     } else {
                         Some(
                             view! {
                                 <div class="mt-2 mr-4 p-2 bg-gray-700 rounded-md">
                                     <pre class="whitespace-pre-wrap">
-                                        {last_cmd.map(|s| { s() })} <br /> {text.map(|s| { s() })}
+                                        {tab_state
+                                            .map(|ts| {
+                                                let items = ts
+                                                    .opts
+                                                    .iter()
+                                                    .enumerate()
+                                                    .map(|(vi, s)| {
+                                                        view! {
+                                                            {auto_comp_item(s, Some(vi) == ts.index)}
+                                                            "  "
+                                                        }
+                                                    })
+                                                    .collect_view();
+                                                view! {
+                                                    {items}
+                                                    <br />
+                                                }
+                                            })}
+                                        {last_cmd
+                                            .map(|s| {
+                                                view! {
+                                                    {s()}
+                                                    <br />
+                                                }
+                                            })} {text.map(|s| { s() })}
 
                                     </pre>
                                 </div>

@@ -45,6 +45,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/") view=HomePage />
                     <ParentRoute path=path!("/blog") view=BlogWrapper>
                         <Route path=path!("/") view=BlogHome />
+                        <Route path=path!("/:path") view=BlogPage />
                     </ParentRoute>
                     <Route path=path!("/cv") view=CVPage />
                 </Routes>
@@ -75,6 +76,14 @@ fn BlogWrapper() -> impl IntoView {
 fn BlogHome() -> impl IntoView {
     view! {
         <Title text="Blog Home" />
+        <div>TODO</div>
+    }
+}
+
+#[component]
+fn BlogPage() -> impl IntoView {
+    view! {
+        <Title text="Blog Page" />
         <div>TODO</div>
     }
 }
