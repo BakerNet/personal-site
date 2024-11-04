@@ -7,7 +7,7 @@ use leptos_router::{
     NavigateOptions,
 };
 
-use super::terminal::{CommandRes, Terminal};
+use super::terminal::{ColumnarView, CommandRes, Terminal};
 
 #[derive(Debug, Clone)]
 struct TabState {
@@ -317,8 +317,8 @@ pub fn Header() -> impl IntoView {
     view! {
         <header class="bg-gray-800 shadow">
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div class="flex items-center justify-between">
-                    <h1 class="text-2xl font-bold">
+                <div class="flex flex-wrap items-center justify-between">
+                    <h1 class="text-2xl font-bold mr-4">
                         {move || {
                             let err = is_err.get();
                             let pathname = use_location().pathname.get();
@@ -328,7 +328,7 @@ pub fn Header() -> impl IntoView {
 
                     </h1>
                     <form
-                        class="flex-1 mx-4"
+                        class="flex-1 min-w-64"
                         on:submit=move |ev| {
                             ev.prevent_default();
                             let el = if let Some(el) = input_ref.get_untracked() {
@@ -362,23 +362,23 @@ pub fn Header() -> impl IntoView {
                     } else {
                         Some(
                             view! {
-                                <div class="mt-2 mr-4 p-2 bg-gray-700 rounded-md">
+                                <div class="mt-2 p-2 bg-gray-700 rounded-md">
                                     <pre class="whitespace-pre-wrap">
                                         {tab_state
                                             .map(|ts| {
-                                                let items = ts
+                                                let selected = ts
                                                     .opts
                                                     .iter()
                                                     .enumerate()
-                                                    .map(|(vi, s)| {
-                                                        view! {
-                                                            {auto_comp_item(s, Some(vi) == ts.index)}
-                                                            "  "
-                                                        }
-                                                    })
-                                                    .collect_view();
+                                                    .find_map(|(vi, s)| {
+                                                        if Some(vi) == ts.index { Some(s.to_owned()) } else { None }
+                                                    });
+                                                let render_func = move |s: String| {
+                                                    let is_sel = Some(&s) == selected.as_ref();
+                                                    auto_comp_item(&s, is_sel).into_any()
+                                                };
                                                 view! {
-                                                    {items}
+                                                    <ColumnarView items=ts.opts.to_vec() render_func />
                                                     <br />
                                                 }
                                             })}
