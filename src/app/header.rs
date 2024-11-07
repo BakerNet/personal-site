@@ -7,6 +7,11 @@ use leptos_router::{
     NavigateOptions,
 };
 
+#[cfg(feature = "hydrate")]
+use codee::string::JsonSerdeWasmCodec;
+#[cfg(feature = "hydrate")]
+use leptos_use::storage::use_local_storage;
+
 use super::terminal::{ColumnarView, CommandRes, Terminal};
 
 #[derive(Debug, Clone)]
@@ -38,14 +43,31 @@ pub fn Header() -> impl IntoView {
         "sixteenth_post".to_string(),
         "last_post".to_string(),
     ];
-    // TODO - fetch and store history in local storage
     let terminal = StoredValue::new(Arc::new(Mutex::new(Terminal::new(&blog_posts, None))));
     let input_ref = NodeRef::<html::Input>::new();
-    let (last_cmd, set_last_cmd) = signal(None::<ChildrenFn>);
-    let (text, set_text) = signal(None::<ChildrenFn>);
+    let (output_history, set_output_history) =
+        signal(Arc::new(Mutex::new(Vec::<ChildrenFn>::new())));
     let (is_err, set_is_err) = signal(false);
     let (is_tabbing, set_is_tabbing) = signal(false);
     let (tab_state, set_tab_state) = signal(None::<TabState>);
+
+    #[cfg(feature = "hydrate")]
+    let (cmd_history, set_cmd_history, _) =
+        use_local_storage::<Vec<String>, JsonSerdeWasmCodec>("cmd_history");
+
+    #[cfg(feature = "hydrate")]
+    Effect::watch(
+        || (),
+        move |_, _, _| {
+            let history = cmd_history.get_untracked();
+            terminal.with_value(|t| {
+                t.lock()
+                    .expect("should be able to unlock terminal")
+                    .set_history(history);
+            });
+        },
+        true,
+    );
 
     let dir_from_pathname = |pathname: String| {
         let dir = pathname
@@ -122,43 +144,54 @@ pub fn Header() -> impl IntoView {
         let prev_pathname = use_location().pathname.get();
         let prev_dir = dir_from_pathname(prev_pathname);
 
+        let history_vec = set_output_history.write();
+        let mut history_vec = history_vec.lock().expect("should be able to acquire lock");
+
         if cmd.trim() != "clear" {
-            set_last_cmd(Some(Arc::new(move || {
+            history_vec.push(Arc::new(move || {
                 view! {
+                    <div>
                     {ps1(was_err, &prev_dir, false)}
                     " "
                     {cmd.to_string()}
+                    </div>
                 }
                 .into_any()
-            })));
+            }));
         } else {
-            set_last_cmd(None);
+            history_vec.clear();
         }
 
         match res {
             CommandRes::EmptyErr => {
                 set_is_err(true);
-                set_text(None);
             }
             CommandRes::Err(s) => {
                 set_is_err(true);
-                set_text(Some(s));
+                history_vec.push(s);
             }
             CommandRes::Redirect(s) => {
                 set_is_err(false);
-                set_text(None);
                 let navigate = use_navigate();
                 navigate(&s, NavigateOptions::default());
             }
             CommandRes::Output(s) => {
                 set_is_err(false);
-                set_text(Some(s));
+                history_vec.push(s);
             }
             CommandRes::Nothing => {
                 set_is_err(false);
-                set_text(None);
             }
         }
+
+        #[cfg(feature = "hydrate")]
+        terminal.with_value(|t| {
+            set_cmd_history.set(
+                t.lock()
+                    .expect("should be able to unlock terminal")
+                    .history(),
+            );
+        });
     };
 
     let tab_replace = move |val: &str, new: &str| {
@@ -317,6 +350,28 @@ pub fn Header() -> impl IntoView {
     view! {
         <header class="bg-gray-800 shadow">
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                {move || {
+                    let history = output_history.get();
+                    let views = {
+                        let history = history.lock().expect("should be able to acquire lock");
+                        history
+                            .iter()
+                            .map(|s| s()).collect_view()
+                    };
+                    if views.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            view! {
+                                <div class="flex flex-col-reverse max-h-72 overflow-y-auto mb-2 p-2 bg-gray-700 rounded-md">
+                                    <pre class="whitespace-pre-wrap">
+                                        {views}
+                                    </pre>
+                                </div>
+                            },
+                        )
+                    }
+                }}
                 <div class="flex flex-wrap items-center justify-between">
                     <h1 class="text-2xl font-bold mr-4">
                         {move || {
@@ -354,10 +409,8 @@ pub fn Header() -> impl IntoView {
                     <nav></nav>
                 </div>
                 {move || {
-                    let text = text.get();
-                    let last_cmd = last_cmd.get();
                     let tab_state = tab_state.get();
-                    if text.is_none() && last_cmd.is_none() && tab_state.is_none() {
+                    if tab_state.is_none() {
                         None
                     } else {
                         Some(
@@ -382,14 +435,6 @@ pub fn Header() -> impl IntoView {
                                                     <br />
                                                 }
                                             })}
-                                        {last_cmd
-                                            .map(|s| {
-                                                view! {
-                                                    {s()}
-                                                    <br />
-                                                }
-                                            })} {text.map(|s| { s() })}
-
                                     </pre>
                                 </div>
                             },

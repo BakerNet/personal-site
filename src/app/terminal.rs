@@ -40,7 +40,25 @@ impl Terminal {
         }
     }
 
+    #[cfg(feature = "hydrate")]
+    pub fn set_history(&mut self, history: Vec<String>) {
+        self.pointer = history.len();
+        self.history = history;
+    }
+
+    #[cfg(feature = "hydrate")]
+    pub fn history(&self) -> Vec<String> {
+        if self.history.len() > 100 {
+            self.history[self.history.len()-100..].to_vec()
+        } else {
+            self.history.clone()
+        }
+    }
+
     pub fn handle_command(&mut self, path: &str, input: &str) -> CommandRes {
+        if input.trim().is_empty() {
+            return CommandRes::EmptyErr
+        }
         self.history.push(input.to_string());
         self.reset_pointer();
 
@@ -606,7 +624,8 @@ impl Target {
             }
             "/mines.sh" => Self::File(File::MinesSh),
             "/thanks.txt" => Self::File(File::ThanksTxt),
-            "/index.rs" | "/blog/index.rs" | "/cv/index.rs" => Self::File(File::Index(path[..path.len() -LEN_OF_INDEX].to_string())),
+            "/index.rs" => Self::File(File::Index("/".to_string())),
+            "/blog/index.rs" | "/cv/index.rs" => Self::File(File::Index(path[..path.len() -LEN_OF_INDEX].to_string())),
             post_index
                 if post_index.starts_with("/blog/")
                     && post_index.ends_with("/index.rs")
