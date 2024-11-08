@@ -3,12 +3,6 @@ use std::{collections::VecDeque, sync::Arc};
 use leptos::{either::*, prelude::*};
 use leptos_router::components::*;
 
-pub struct Terminal {
-    blog_posts: Vec<String>,
-    history: Vec<String>,
-    pointer: usize,
-}
-
 const LEN_OF_INDEX: usize = 9;
 const CHAR_WIDTH: usize = 9;
 const TERMINAL_MARGINS: usize = 65;
@@ -29,20 +23,22 @@ mines
 "#;
 const THANKS_TXT: &str = "Thank you to my wife and my daughter for bringing immense joy to my life.";
 
+pub struct Terminal {
+    blog_posts: Vec<String>,
+    history: Vec<String>,
+}
+
 impl Terminal {
     pub fn new(blog_posts: &[String], history: Option<Vec<String>>) -> Self {
         let history = history.unwrap_or_default();
-        let pointer = history.len();
         Self {
             blog_posts: blog_posts.to_owned(),
             history,
-            pointer,
         }
     }
 
     #[cfg(feature = "hydrate")]
     pub fn set_history(&mut self, history: Vec<String>) {
-        self.pointer = history.len();
         self.history = history;
     }
 
@@ -60,7 +56,6 @@ impl Terminal {
             return CommandRes::EmptyErr
         }
         self.history.push(input.to_string());
-        self.reset_pointer();
 
         let mut parts = input.split_whitespace();
         let cmd_text = if let Some(word) = parts.next() {
@@ -85,7 +80,15 @@ impl Terminal {
         }
     }
 
-    pub fn handle_tab(&mut self, path: &str, input: &str) -> Vec<String> {
+    pub fn handle_start_hist(&self, input: &str) -> Vec<String> {
+        if input.trim().is_empty() {
+            self.history.clone()
+        } else {
+            self.history.iter().filter(|s| s.starts_with(input)).map(|s| s.to_string()).collect()
+        }
+    }
+
+    pub fn handle_start_tab(&mut self, path: &str, input: &str) -> Vec<String> {
         let mut parts = input.split_whitespace();
         let cmd_text = if let Some(word) = parts.next() {
             word
@@ -103,30 +106,6 @@ impl Terminal {
             _ if parts.peek().is_none() && !input.ends_with(" ") => Vec::new(),
             Command::Cd => self.tab_opts(path, parts.last().unwrap_or_default()).into_iter().filter(|s| s.ends_with("/")).collect(),
             _ => self.tab_opts(path, parts.last().unwrap_or_default())
-        }
-    }
-
-    pub fn reset_pointer(&mut self) {
-        self.pointer = self.history.len();
-    }
-
-    pub fn handle_up(&mut self) -> Option<String> {
-        if self.pointer > 0 {
-            self.pointer -= 1;
-            Some(self.history[self.pointer].clone())
-        } else {
-            None
-        }
-    }
-
-    pub fn handle_down(&mut self) -> Option<String> {
-        if self.pointer < self.history.len() {
-            self.pointer += 1;
-        }
-        if self.pointer < self.history.len() {
-            Some(self.history[self.pointer].clone())
-        } else {
-            None
         }
     }
 
@@ -485,7 +464,7 @@ where
     let rows = num_rows(items.len(), cols);
     let item_cols = items.chunks(rows).map(|x| x.to_vec()).collect::<Vec<Vec<String>>>();
     let col_lens = item_cols.iter().map(|v| v.iter().map(|s| s.len() +2).max().expect("there should be a max len for each column")).collect::<Vec<_>>();
-    let views = (0..rows).into_iter().map(|row| 
+    let views = (0..rows).map(|row| 
         view! {
             <div>
                 {item_cols

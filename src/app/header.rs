@@ -21,6 +21,13 @@ struct TabState {
     index: Option<usize>,
 }
 
+#[derive(Debug, Clone)]
+struct HistState {
+    cursor: usize,
+    opts: Arc<Vec<String>>,
+    index: usize,
+}
+
 #[component]
 pub fn Header() -> impl IntoView {
     // TODO - actually get blog posts
@@ -48,8 +55,8 @@ pub fn Header() -> impl IntoView {
     let (output_history, set_output_history) =
         signal(Arc::new(Mutex::new(Vec::<ChildrenFn>::new())));
     let (is_err, set_is_err) = signal(false);
-    let (is_tabbing, set_is_tabbing) = signal(false);
     let (tab_state, set_tab_state) = signal(None::<TabState>);
+    let (hist_state, set_hist_state) = signal(None::<HistState>);
 
     #[cfg(feature = "hydrate")]
     let (cmd_history, set_cmd_history, _) =
@@ -81,55 +88,36 @@ pub fn Header() -> impl IntoView {
         }
     };
 
-    let ps1 = move |is_err: bool, path: &str, with_links: bool| {
-        view! {
-            <span class=move || {
-                if is_err { "text-red-500" } else { "text-green-500" }
-            }>"➜"</span>
-            " "
-            {if with_links {
-                Either::Left({
-                    let path = path.to_string();
-                    view! {
-                        <A href="/" attr:class="text-teal-400">
-                            {path}
-                        </A>
-                    }
-                })
-            } else {
-                Either::Right(view! { <span class="text-teal-400">{path.to_string()}</span> })
-            }}
-            " "
+    let handle_cmd = move |cmd: String, force_err: bool| {
+        let history_vec = set_output_history.write();
+        let mut history_vec = history_vec.lock().expect("should be able to acquire lock");
 
-            {if with_links {
-                Either::Left(
-                    view! {
-                        <A href="https://github.com/BakerNet/personal-site">
-                            <span class="text-blue-400">
-                                <span>"git:("</span>
-                                <span class="text-red-500">"main"</span>
-                                <span>")"</span>
-                            </span>
-                        </A>
-                    },
-                )
-            } else {
-                Either::Right(
-                    view! {
-                        <span class="text-blue-400">
-                            <span>"git:("</span>
-                            <span class="text-red-500">"main"</span>
-                            <span>")"</span>
-                        </span>
-                    },
-                )
-            }}
-            ""
-            <span class="text-yellow-400">"✗"</span>
+        if cmd.trim() != "clear" {
+            // add copy of current ps1 to history
+            let was_err = is_err.get_untracked();
+            let prev_pathname = use_location().pathname.get();
+            let prev_dir = dir_from_pathname(prev_pathname);
+            let cmd = cmd.clone();
+            history_vec.push(Arc::new(move || {
+                view! {
+                    <div>
+                        <Ps1 is_err=was_err path=prev_dir.clone() with_links=false />
+                        " "
+                        {cmd.clone()}
+                    </div>
+                }
+                .into_any()
+            }));
+        } else {
+            history_vec.clear();
         }
-    };
 
-    let handle_cmd = move |cmd: String| {
+        if force_err {
+            // user used Ctrl+C
+            set_is_err(true);
+            return;
+        }
+
         let res = terminal.with_value(|t| {
             if let Some(path) = location_pathname() {
                 t.lock()
@@ -139,28 +127,6 @@ pub fn Header() -> impl IntoView {
                 CommandRes::EmptyErr
             }
         });
-
-        let was_err = is_err.get_untracked();
-        let prev_pathname = use_location().pathname.get();
-        let prev_dir = dir_from_pathname(prev_pathname);
-
-        let history_vec = set_output_history.write();
-        let mut history_vec = history_vec.lock().expect("should be able to acquire lock");
-
-        if cmd.trim() != "clear" {
-            history_vec.push(Arc::new(move || {
-                view! {
-                    <div>
-                    {ps1(was_err, &prev_dir, false)}
-                    " "
-                    {cmd.to_string()}
-                    </div>
-                }
-                .into_any()
-            }));
-        } else {
-            history_vec.clear();
-        }
 
         match res {
             CommandRes::EmptyErr => {
@@ -207,56 +173,111 @@ pub fn Header() -> impl IntoView {
     };
 
     let keydown_handler = move |ev: KeyboardEvent| {
-        if ev.meta_key() || ev.alt_key() || ev.ctrl_key() {
-            return;
-        }
         let el = if let Some(el) = input_ref.get_untracked() {
             el
         } else {
             set_is_err(true);
             return;
         };
+        if ev.ctrl_key() && ev.key() == "c" {
+            handle_cmd(el.value(), true);
+            el.set_value("");
+            set_hist_state(None);
+            set_tab_state(None);
+            return;
+        }
+        if ev.ctrl_key() && ev.key() == "l" {
+            handle_cmd("clear".to_string(), false);
+            el.set_value("");
+            set_hist_state(None);
+            set_tab_state(None);
+            return;
+        }
+        if ev.meta_key() || ev.alt_key() || ev.ctrl_key() {
+            return;
+        }
+
+        let is_tabbing = tab_state.get_untracked().is_some();
+        let is_cycling_hist = hist_state.get_untracked().is_some();
 
         match ev.key().as_ref() {
             "ArrowUp" => {
-                if is_tabbing.get_untracked() {
-                    set_is_tabbing(false);
+                // cycle history prev
+                ev.prevent_default();
+                if is_tabbing {
                     set_tab_state(None);
                 }
-                ev.prevent_default();
-                let new_text = terminal.with_value(|t| {
-                    t.lock()
-                        .expect("should be able to access terminal")
-                        .handle_up()
-                });
-                if let Some(nt) = new_text {
-                    el.set_value(&nt);
+                let HistState {
+                    cursor,
+                    opts,
+                    index,
+                } = if is_cycling_hist {
+                    hist_state.get_untracked().unwrap()
+                } else {
+                    // initialize state
+                    let val = el.value();
+                    let v = terminal.with_value(|t| {
+                        t.lock()
+                            .expect("should be able to access terminal")
+                            .handle_start_hist(&val)
+                    });
+                    let cursor = val.len();
+                    let i = v.len();
+                    HistState {
+                        cursor,
+                        opts: v.into(),
+                        index: i,
+                    }
+                };
+                if index == 0 {
+                    return;
                 }
+                let index = index - 1;
+                let new_val = &(*opts)[index];
+                el.set_value(new_val);
+                set_hist_state(Some(HistState {
+                    cursor,
+                    opts,
+                    index,
+                }));
             }
             "ArrowDown" => {
-                if is_tabbing.get_untracked() {
-                    set_is_tabbing(false);
+                // cycle history next
+                if is_tabbing {
                     set_tab_state(None);
                 }
-                ev.prevent_default();
-                let new_text = terminal.with_value(|t| {
-                    t.lock()
-                        .expect("should be able to access terminal")
-                        .handle_down()
-                });
-                if let Some(nt) = new_text {
-                    el.set_value(&nt);
-                } else {
-                    el.set_value("");
+                if !is_cycling_hist {
+                    return;
                 }
+                ev.prevent_default();
+                let HistState {
+                    cursor,
+                    opts,
+                    index,
+                } = hist_state.get_untracked().unwrap();
+                let index = index + 1;
+                if index == opts.len() {
+                    let val = el.value();
+                    el.set_value(&val[..cursor]);
+                    set_hist_state(None);
+                }
+                let new_val = &(*opts)[index];
+                el.set_value(new_val);
+                set_hist_state(Some(HistState {
+                    cursor,
+                    opts,
+                    index,
+                }));
             }
             "Tab" => {
-                if is_tabbing.get_untracked() {
-                    let val = el.value();
-                    if val.is_empty() {
-                        return;
-                    }
-                    ev.prevent_default();
+                let val = el.value();
+                if val.is_empty() {
+                    return;
+                }
+                ev.prevent_default();
+                let is_shift = ev.shift_key();
+                if is_tabbing {
+                    // cycle tab options
                     let TabState {
                         cursor,
                         opts,
@@ -264,9 +285,11 @@ pub fn Header() -> impl IntoView {
                     } = tab_state
                         .get_untracked()
                         .expect("is tabbing but no tab state");
-                    let new_index = match index {
-                        None => 0,
-                        Some(i) => (i + 1) % opts.len(),
+                    let new_index = match (index, is_shift) {
+                        (None, false) => 0,
+                        (Some(i), false) => (i + 1) % opts.len(),
+                        (None, true) | (Some(0), true) => opts.len() - 1,
+                        (Some(i), true) => i - 1,
                     };
                     let new = tab_replace(&val[..cursor], &opts[new_index]);
                     el.set_value(&new);
@@ -276,20 +299,16 @@ pub fn Header() -> impl IntoView {
                         index: Some(new_index),
                     }));
                 } else {
-                    let val = el.value();
-                    if val.is_empty() {
-                        return;
-                    }
+                    // initialize state
                     let path = if let Some(p) = location_pathname() {
                         p
                     } else {
                         return;
                     };
-                    ev.prevent_default();
                     let opts = terminal.with_value(|t| {
                         t.lock()
                             .expect("should be able to access terminal")
-                            .handle_tab(&path, &val)
+                            .handle_start_tab(&path, &val)
                     });
                     if opts.is_empty() {
                         return;
@@ -299,24 +318,31 @@ pub fn Header() -> impl IntoView {
                         el.set_value(&new);
                         return;
                     }
-                    set_is_tabbing(true);
                     let cursor = val.len();
+                    let index = if is_shift {
+                        let i = opts.len() - 1;
+                        let new = tab_replace(&val[..cursor], &opts[i]);
+                        el.set_value(&new);
+                        Some(i)
+                    } else {
+                        None
+                    };
                     set_tab_state(Some(TabState {
                         cursor,
                         opts: opts.into(),
-                        index: None,
+                        index,
                     }));
                 }
             }
-            _ => terminal.with_value(|t| {
-                if is_tabbing.get_untracked() {
-                    set_is_tabbing(false);
+            "Shift" => {} // don't reset state on empty shift
+            _ => {
+                if is_tabbing {
                     set_tab_state(None);
                 }
-                t.lock()
-                    .expect("should be able to access terminal")
-                    .reset_pointer();
-            }),
+                if is_cycling_hist {
+                    set_hist_state(None);
+                }
+            }
         }
     };
 
@@ -354,9 +380,7 @@ pub fn Header() -> impl IntoView {
                     let history = output_history.get();
                     let views = {
                         let history = history.lock().expect("should be able to acquire lock");
-                        history
-                            .iter()
-                            .map(|s| s()).collect_view()
+                        history.iter().map(|s| s()).collect_view()
                     };
                     if views.is_empty() {
                         None
@@ -364,21 +388,18 @@ pub fn Header() -> impl IntoView {
                         Some(
                             view! {
                                 <div class="flex flex-col-reverse max-h-72 overflow-y-auto mb-2 p-2 bg-gray-700 rounded-md">
-                                    <pre class="whitespace-pre-wrap">
-                                        {views}
-                                    </pre>
+                                    <pre class="whitespace-pre-wrap">{views}</pre>
                                 </div>
                             },
                         )
                     }
-                }}
-                <div class="flex flex-wrap items-center justify-between">
+                }} <div class="flex flex-wrap items-center justify-between">
                     <h1 class="text-2xl font-bold mr-4">
                         {move || {
                             let err = is_err.get();
                             let pathname = use_location().pathname.get();
                             let dir = dir_from_pathname(pathname);
-                            ps1(err, &dir, true)
+                            view! { <Ps1 is_err=err path=dir with_links=true /> }
                         }}
 
                     </h1>
@@ -392,7 +413,7 @@ pub fn Header() -> impl IntoView {
                                 set_is_err(true);
                                 return;
                             };
-                            handle_cmd(el.value());
+                            handle_cmd(el.value(), false);
                             el.set_value("");
                         }
                     >
@@ -443,5 +464,52 @@ pub fn Header() -> impl IntoView {
                 }}
             </div>
         </header>
+    }
+}
+
+#[component]
+fn Ps1(is_err: bool, path: String, with_links: bool) -> impl IntoView {
+    view! {
+        <span class=move || { if is_err { "text-red-500" } else { "text-green-500" } }>"➜"</span>
+        " "
+        {if with_links {
+            Either::Left({
+                let path = path.to_string();
+                view! {
+                    <A href="/" attr:class="text-teal-400">
+                        {path}
+                    </A>
+                }
+            })
+        } else {
+            Either::Right(view! { <span class="text-teal-400">{path.to_string()}</span> })
+        }}
+        " "
+
+        {if with_links {
+            Either::Left(
+                view! {
+                    <A href="https://github.com/BakerNet/personal-site">
+                        <span class="text-blue-400">
+                            <span>"git:("</span>
+                            <span class="text-red-500">"main"</span>
+                            <span>")"</span>
+                        </span>
+                    </A>
+                },
+            )
+        } else {
+            Either::Right(
+                view! {
+                    <span class="text-blue-400">
+                        <span>"git:("</span>
+                        <span class="text-red-500">"main"</span>
+                        <span>")"</span>
+                    </span>
+                },
+            )
+        }}
+        ""
+        <span class="text-yellow-400">"✗"</span>
     }
 }
