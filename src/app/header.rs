@@ -355,14 +355,14 @@ pub fn Header() -> impl IntoView {
         };
         view! {
             <span class=if active {
-                "bg-gray-200 text-gray-900"
+                "bg-white text-black"
             } else {
                 ""
             }>
                 {if !active && is_dir {
                     Either::Left(
                         view! {
-                            <span class="text-blue-400">{s}</span>
+                            <span class="text-blue">{s}</span>
                             "/"
                         },
                     )
@@ -374,7 +374,7 @@ pub fn Header() -> impl IntoView {
     };
 
     view! {
-        <header class="bg-gray-800 shadow">
+        <header class="shadow-lg">
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4">
                 {move || {
                     let history = output_history.get();
@@ -387,7 +387,7 @@ pub fn Header() -> impl IntoView {
                     } else {
                         Some(
                             view! {
-                                <div class="flex flex-col-reverse max-h-72 overflow-y-auto mb-2 p-2 bg-gray-700 rounded-md">
+                                <div class="flex flex-col-reverse max-h-72 overflow-y-auto mb-2 p-2 rounded-md">
                                     <pre class="whitespace-pre-wrap">{views}</pre>
                                 </div>
                             },
@@ -423,7 +423,7 @@ pub fn Header() -> impl IntoView {
                                 on:keydown=keydown_handler
                                 type="text"
                                 placeholder="Type a command (try 'help')"
-                                class="w-full px-4 py-2 rounded-md border border-gray-700 bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-brightBlack"
                             />
                         </div>
                     </form>
@@ -436,7 +436,7 @@ pub fn Header() -> impl IntoView {
                     } else {
                         Some(
                             view! {
-                                <div class="mt-2 p-2 bg-gray-700 rounded-md">
+                                <div class="mt-2 p-2 rounded-md">
                                     <pre class="whitespace-pre-wrap">
                                         {tab_state
                                             .map(|ts| {
@@ -453,7 +453,6 @@ pub fn Header() -> impl IntoView {
                                                 };
                                                 view! {
                                                     <ColumnarView items=ts.opts.to_vec() render_func />
-                                                    <br />
                                                 }
                                             })}
                                     </pre>
@@ -470,19 +469,19 @@ pub fn Header() -> impl IntoView {
 #[component]
 fn Ps1(is_err: bool, path: String, with_links: bool) -> impl IntoView {
     view! {
-        <span class=move || { if is_err { "text-red-500" } else { "text-green-500" } }>"➜"</span>
+        <span class=move || { if is_err { "text-red" } else { "text-green" } }>"➜"</span>
         " "
         {if with_links {
             Either::Left({
                 let path = path.to_string();
                 view! {
-                    <A href="/" attr:class="text-teal-400">
+                    <A href="/" attr:class="text-cyan">
                         {path}
                     </A>
                 }
             })
         } else {
-            Either::Right(view! { <span class="text-teal-400">{path.to_string()}</span> })
+            Either::Right(view! { <span class="text-cyan">{path.to_string()}</span> })
         }}
         " "
 
@@ -490,9 +489,9 @@ fn Ps1(is_err: bool, path: String, with_links: bool) -> impl IntoView {
             Either::Left(
                 view! {
                     <A href="https://github.com/BakerNet/personal-site">
-                        <span class="text-blue-400">
+                        <span class="text-blue">
                             <span>"git:("</span>
-                            <span class="text-red-500">"main"</span>
+                            <span class="text-red">"main"</span>
                             <span>")"</span>
                         </span>
                     </A>
@@ -501,15 +500,15 @@ fn Ps1(is_err: bool, path: String, with_links: bool) -> impl IntoView {
         } else {
             Either::Right(
                 view! {
-                    <span class="text-blue-400">
+                    <span class="text-blue">
                         <span>"git:("</span>
-                        <span class="text-red-500">"main"</span>
+                        <span class="text-red">"main"</span>
                         <span>")"</span>
                     </span>
                 },
             )
         }}
         ""
-        <span class="text-yellow-400">"✗"</span>
+        <span class="text-yellow">"✗"</span>
     }
 }

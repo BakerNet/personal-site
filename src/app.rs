@@ -1,4 +1,7 @@
+mod ascii;
+mod avatar;
 mod header;
+mod homepage;
 mod terminal;
 
 use leptos::prelude::*;
@@ -6,6 +9,7 @@ use leptos_meta::*;
 use leptos_router::{components::*, path};
 
 use header::Header;
+use homepage::HomePage;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -19,9 +23,10 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta name="color-scheme" content="dark" />
                 <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
                 <link rel="stylesheet" id="leptos" href="/pkg/personal-site.css" />
+                <link rel="stylesheet" href="/css/devicon.min.css" />
                 <MetaTags />
             </head>
-            <body class="font-mono">
+            <body class="flex flex-col font-mono min-h-screen bg-background text-foreground">
                 <App />
             </body>
         </html>
@@ -40,7 +45,7 @@ pub fn App() -> impl IntoView {
         // content for this welcome page
         <Router>
             <Header />
-            <main class="flex flex-col flex-grow justify-center items-center mx-auto w-full max-w-7xl">
+            <main class="flex flex-col flex-1 mx-auto max-w-full p-8 lg:p-16 xl:p-32">
                 <Routes fallback=|| "Page not found.".into_view()>
                     <Route path=path!("/") view=HomePage />
                     <ParentRoute path=path!("/blog") view=BlogWrapper>
@@ -51,16 +56,6 @@ pub fn App() -> impl IntoView {
                 </Routes>
             </main>
         </Router>
-    }
-}
-
-/// Renders the home page of your application.
-#[component]
-fn HomePage() -> impl IntoView {
-    view! {
-        <Title text="About Me" />
-        <h1 class="font-bold text-2xl text-center">"Hans Baker"</h1>
-        <div>TODO</div>
     }
 }
 

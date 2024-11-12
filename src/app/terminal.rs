@@ -386,7 +386,7 @@ fn path_target_to_target_path(path: &str, target: &str, preserve_dot: bool) -> S
 
 #[component]
 fn LsView(items: Vec<String>, base: String) -> impl IntoView {
-    let dir_class = "text-blue-400";
+    let dir_class = "text-blue";
     let item_clone = items.clone();
     let render_func = {
         let base = base.to_owned();
@@ -583,7 +583,6 @@ func main() {{
     }
 }
 
-// TODO - refactor to file or directory & enum for each
 #[derive(Debug, Clone)]
 enum Target {
     Dir(Dir),
