@@ -21,10 +21,9 @@ use std::sync::LazyLock;
 use crate::highlight::highlight;
 
 #[cfg(feature = "ssr")]
-static GLOBAL_POST_CACHE: LazyLock<DashMap<String, String>> = LazyLock::new(|| DashMap::new());
+static GLOBAL_POST_CACHE: LazyLock<DashMap<String, String>> = LazyLock::new(DashMap::new);
 #[cfg(feature = "ssr")]
-static GLOBAL_META_CACHE: LazyLock<DashMap<String, Vec<PostMeta>>> =
-    LazyLock::new(|| DashMap::new());
+static GLOBAL_META_CACHE: LazyLock<DashMap<String, Vec<PostMeta>>> = LazyLock::new(DashMap::new);
 
 #[derive(Embed)]
 #[folder = "blog"]
@@ -72,7 +71,7 @@ pub async fn get_meta() -> Result<Vec<PostMeta>, ServerFnError> {
                     let content =
                         &String::from_utf8(content.data.into()).expect("Couldn't parse blog post");
                     let fm = matter
-                        .parse_with_struct::<FrontMatter>(&content)
+                        .parse_with_struct::<FrontMatter>(content)
                         .ok_or_else(|| {
                             logging::error!("Unable to parse meta for {}", s);
                             ServerFnError::new("Couldn't parse blog posts")
@@ -100,10 +99,7 @@ pub async fn get_meta() -> Result<Vec<PostMeta>, ServerFnError> {
 pub fn BlogHome() -> impl IntoView {
     let posts = Resource::new(
         || (),
-        move |_| async {
-            let meta = get_meta().await.unwrap_or(Vec::new());
-            meta
-        },
+        move |_| async { get_meta().await.unwrap_or(Vec::new()) },
     );
     view! {
         <Title text="Blog Home" />
@@ -143,7 +139,7 @@ pub async fn get_post(name: String) -> Result<String, ServerFnError> {
         .or_insert_with(move || {
             let content =
                 &String::from_utf8(content.data.into()).expect("Couldn't parse blog post");
-            let parser = Parser::new_ext(&content, Options::all());
+            let parser = Parser::new_ext(content, Options::all());
             let parser = highlight(parser);
 
             // Write to a new String buffer.
@@ -158,19 +154,16 @@ pub async fn get_post(name: String) -> Result<String, ServerFnError> {
 pub fn BlogPage() -> impl IntoView {
     let params = use_params_map();
     let post_name = move || params.get().get("post").unwrap_or_default();
-    let post = Resource::new(
-        move || post_name(),
-        move |name| async {
-            // take ownership of name
-            let name = name;
-            let name = format!("{}.md", name);
-            let post = get_post(name).await;
-            match post {
-                Ok(s) => s,
-                Err(e) => e.to_string(),
-            }
-        },
-    );
+    let post = Resource::new(post_name, move |name| async {
+        // take ownership of name
+        let name = name;
+        let name = format!("{}.md", name);
+        let post = get_post(name).await;
+        match post {
+            Ok(s) => s,
+            Err(e) => e.to_string(),
+        }
+    });
     view! {
         <Title text="Blog Page" />
         <div>"$ cat "{post_name}".md"</div>

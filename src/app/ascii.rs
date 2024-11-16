@@ -1,4 +1,4 @@
-pub const AVATAR_BLOCK: [&'static str; 20] = [
+pub const AVATAR_BLOCK: [&str; 20] = [
     AVATAR_ROW_0,
     AVATAR_ROW_1,
     AVATAR_ROW_2,
@@ -42,7 +42,7 @@ pub static AVATAR_ROW_17: &str = r#"<span><span>          </span><span style="co
 pub static AVATAR_ROW_18: &str = r#"<span><span>          </span><span style="color:#a18579">"</span><span style="color:#b78a72">*</span><span style="color:#c48b6e">k</span><span style="color:#c3896f">j</span><span style="color:#c28871">!</span><span style="color:#c0886d">|</span><span style="color:#c38569">j</span><span style="color:#e09a83">g</span><span style="color:#e89b86">@</span><span style="color:#e29380">%</span><span style="color:#e39783">%</span><span style="color:#eba995">%</span><span style="color:#f2b0a5">@</span><span style="color:#edb6aa">&amp;</span><span style="color:#d1b5aa">U</span><span style="color:#bda89d">N</span><span style="color:#bca086">j</span><span style="color:#beaa9a">j</span><span style="color:#c0b3aa">k</span><span style="color:#c7bfb9">]</span><span style="color:#ced5e3">B</span><span style="color:#dbeffc">$</span><span style="color:#e8fdfe">$</span><span>            </span></span>"#;
 pub static AVATAR_ROW_19: &str = r#"<span><span>              </span><span style="color:#988176">`</span><span style="color:#a08172">'</span><span style="color:#ae7f6b">*</span><span style="color:#cf9079">%</span><span style="color:#efae98">B</span><span style="color:#edad96">M</span><span style="color:#de9982">M</span><span style="color:#d89377">@</span><span style="color:#d0856c">w</span><span style="color:#d2947e">]</span><span style="color:#d8b0a4">$</span><span style="color:#bdabad">m</span><span style="color:#b19b8b">|</span><span style="color:#b09888">i</span><span style="color:#af9d8f">*</span><span style="color:#ab9f98">*</span><span style="color:#a4a6aa">*</span><span style="color:#959b9d">`</span><span>             </span></span>"#;
 
-pub const INFO_BLOCK: [&'static str; 20] = [
+pub const INFO_BLOCK: [&str; 20] = [
     INFO_ROW_0,
     INFO_ROW_1,
     INFO_ROW_2,

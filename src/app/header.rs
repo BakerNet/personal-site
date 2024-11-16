@@ -147,10 +147,10 @@ pub fn Header() -> impl IntoView {
     };
 
     let tab_replace = move |val: &str, new: &str| {
-        let new = if new.ends_with("*") {
-            &new[..new.len() - 1]
+        let new = if let Some(s) = new.strip_suffix("*") {
+            s
         } else {
-            &new[..]
+            new
         };
         if let Some(i) = val.rfind("/") {
             let prefix = &val[..i + 1];

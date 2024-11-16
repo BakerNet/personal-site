@@ -80,7 +80,7 @@ impl Terminal {
             Command::WhoAmI => CommandRes::Output(Arc::new(move || "user".into_any())),
             Command::Neofetch => CommandRes::Output(Arc::new(move || {
                 let text = AVATAR_BLOCK.iter().zip(INFO_BLOCK.iter()).map(|(a, b)| format!("{}  {}", a, b)).fold(String::new(), |acc, s| {
-                    if acc == "" {
+                    if acc.is_empty() {
                         s
                     } else {
                         format!("{}\n{}", acc, s)
