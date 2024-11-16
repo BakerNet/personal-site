@@ -3,6 +3,8 @@ use std::{collections::VecDeque, sync::Arc};
 use leptos::{either::*, prelude::*};
 use leptos_router::components::*;
 
+use super::ascii::{AVATAR_BLOCK, INFO_BLOCK};
+
 const LEN_OF_NAV: usize = 6;
 const CHAR_WIDTH: usize = 9;
 const TERMINAL_MARGINS: usize = 65;
@@ -76,6 +78,16 @@ impl Terminal {
             Command::Clear => CommandRes::Nothing,
             Command::Mines => CommandRes::Redirect(MINES_URL.to_string()),
             Command::WhoAmI => CommandRes::Output(Arc::new(move || "user".into_any())),
+            Command::Neofetch => CommandRes::Output(Arc::new(move || {
+                let text = AVATAR_BLOCK.iter().zip(INFO_BLOCK.iter()).map(|(a, b)| format!("{}  {}", a, b)).fold(String::new(), |acc, s| {
+                    if acc == "" {
+                        s
+                    } else {
+                        format!("{}\n{}", acc, s)
+                    }
+                });
+                view! { <div class="leading-tight" inner_html=text></div> }.into_any()
+            })),
             Command::Unknown => self.handle_unknown(path, cmd_text, parts.collect()),
         }
     }
@@ -641,6 +653,7 @@ enum Command {
     Clear,
     Mines,
     WhoAmI,
+    Neofetch,
     Unknown,
 }
 
@@ -655,6 +668,7 @@ impl From<&str> for Command {
             "clear" => Self::Clear,
             "mines" => Self::Mines,
             "whoami" => Self::WhoAmI,
+            "neofetch" => Self::Neofetch,
             _ => Self::Unknown,
         }
     }
@@ -662,6 +676,6 @@ impl From<&str> for Command {
 
 impl Command {
     fn all() -> Vec<&'static str> {
-        vec!["help", "pwd", "ls", "cd", "cat", "clear", "mines", "whoami"]
+        vec!["help", "pwd", "ls", "cd", "cat", "clear", "mines", "whoami", "neofetch"]
     }
 }

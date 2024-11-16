@@ -65,7 +65,7 @@ pub const INFO_BLOCK: [&'static str; 20] = [
     INFO_ROW_19,
 ];
 
-pub static INFO_ROW_0: &str = r#"<span class="text-brightCyan">contact</span>@<span class="text-brightCyan">hansbaker.com</span> <button class="text-brightWhite" onclick="navigator.clipboard.writeText('contact@hansbaker.com').then(() => alert('copied: contact@hansbaker.com'))">🗐</button>"#;
+pub static INFO_ROW_0: &str = r#"<a href="mailto:contact@hansbaker.com" target="_blank"><span class="text-brightCyan">contact</span>@<span class="text-brightCyan">hansbaker.com</span></a> <button class="text-brightWhite" onclick="navigator.clipboard.writeText('contact@hansbaker.com').then(() => alert('copied: contact@hansbaker.com'))">🗐</button>"#;
 pub static INFO_ROW_1: &str = r#"---------------------"#;
 pub static INFO_ROW_2: &str = r#"<span class="text-brightCyan">Name</span>: Hans Baker"#;
 pub static INFO_ROW_3: &str = r#"<span class="text-brightCyan">Location</span>: USA"#;
@@ -84,7 +84,7 @@ pub static INFO_ROW_12: &str =
 pub static INFO_ROW_13: &str =
     r#"<span class="text-brightCyan">Hobbies</span>: Far too many... 😅"#;
 pub static INFO_ROW_14: &str = r#""#;
-pub static INFO_ROW_15: &str = r#"<span class="text-brightCyan">Pages</span>: <a class="text-blue" href="/blog">/blog</a> | <a class="text-blue" href="/cv">/cv</a> (resume)"#;
+pub static INFO_ROW_15: &str = r#"<span class="text-brightCyan">Pages</span>: <a class="text-blue" href="/blog">/blog</a> | <a class="text-blue" href="/cv">/cv</a> (resume) | <a class="text-blue" href="https://mines.hansbaker.com">mines.</a> (game)"#;
 pub static INFO_ROW_16: &str = r#"<span class="text-brightCyan">Links</span>: <a class="text-blue" href="https://github.com/BakerNet"><i class="devicon-github-plain text-brightWhite"></i> @BakerNet</a> | <a class="text-blue" href="https://linkedin.com/in/hansbaker"><i class="devicon-linkedin-plain text-brightWhite"></i> /in/hansbaker</a>"#;
 pub static INFO_ROW_17: &str = r#""#;
 pub static INFO_ROW_18: &str = r#"<span class="bg-black">   </span><span class="bg-red">   </span><span class="bg-green">   </span><span class="bg-yellow">   </span><span class="bg-blue">   </span><span class="bg-purple">   </span><span class="bg-cyan">   </span><span class="bg-white">   </span>"#;

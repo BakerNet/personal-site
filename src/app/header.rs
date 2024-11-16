@@ -386,7 +386,7 @@ pub fn Header() -> impl IntoView {
                     } else {
                         Some(
                             view! {
-                                <div class="flex flex-col-reverse max-h-72 overflow-y-auto mb-2 p-2 rounded-md">
+                                <div class="flex flex-col-reverse max-h-[480px] overflow-y-auto mb-2 p-2 rounded-md">
                                     <pre class="whitespace-pre-wrap">{views}</pre>
                                 </div>
                             },

@@ -27,7 +27,16 @@ module.exports = {
       "brightWhite": "#e7ecf4",
       "brightYellow": "#f0d399",
     },
-    extend: {},
+    extend: {
+      keyframes: {
+        blink: {
+          '50%': { opacity: 0 },
+        },
+      },
+      animation: {
+        blink: 'blink 1s ease-in-out infinite',
+      },
+    },
   },
   plugins: [],
 }

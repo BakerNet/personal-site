@@ -66,7 +66,20 @@ pub fn App() -> impl IntoView {
 fn CVPage() -> impl IntoView {
     view! {
         <Title text="CV / Resume" />
-        <h1 class="font-bold text-2xl text-center">"CV / Resume"</h1>
-        <div>TODO</div>
+        <h1 class="font-bold text-2xl text-center mb-8">"CV / Resume"</h1>
+        <div class="text-center">
+            <div class="bg-brightBlack text-yellow font-bold px-4 py-2 mb-4 inline-block rounded-lg border-4 border-yellow">
+                <span class="animate-blink">"🚧"</span>
+                " Under Construction "
+                <span class="animate-blink">"🚧"</span>
+            </div>
+        </div>
+        <div class="text-center">
+            "In the meantime, check out my "
+            <a class="text-blue" href="https://linkedin.com/in/hansbaker">
+                "Linked"
+                <i class="devicon-linkedin-plain" />
+            </a>
+        </div>
     }
 }
