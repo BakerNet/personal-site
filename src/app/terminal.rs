@@ -5,7 +5,7 @@ use leptos_router::components::*;
 
 use super::ascii::{AVATAR_BLOCK, INFO_BLOCK};
 
-const LEN_OF_NAV: usize = 6;
+const LEN_OF_NAV: usize = 7;
 const CHAR_WIDTH: usize = 9;
 const TERMINAL_MARGINS: usize = 65;
 const MINES_URL: &str = "https://mines.hansbaker.com";
@@ -623,13 +623,13 @@ impl Target {
             "/mines.sh" => Self::File(File::MinesSh),
             "/thanks.txt" => Self::File(File::ThanksTxt),
             "/nav.rs" => Self::File(File::Nav("/".to_string())),
-            "/blog/nav.rs" | "/cv/nav.rs" => Self::File(File::Nav(path[..path.len() -LEN_OF_NAV].to_string())),
+            "/blog/nav.rs" | "/cv/nav.rs" => Self::File(File::Nav(path[..path.len() - LEN_OF_NAV].to_string())),
             post_nav
                 if post_nav.starts_with("/blog/")
                     && post_nav.ends_with("/nav.rs")
                     && blog_post_exists(&post_nav[..post_nav.len() - LEN_OF_NAV], blog_posts) =>
             {
-                Self::File(File::Nav(path[..path.len()-LEN_OF_NAV].to_string()))
+                Self::File(File::Nav(path[..path.len() - LEN_OF_NAV].to_string()))
             }
             _ => Self::Invalid,
         }
