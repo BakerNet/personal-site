@@ -140,7 +140,7 @@ pub fn BlogPage() -> impl IntoView {
     );
     view! {
         <Title text="Blog Page" />
-        <div>"$ cat "{post_name()}".md"</div>
+        <div>"$ cat "{post_name}".md"</div>
         <Suspense>
             {move || Suspend::new(async move {
                 let post = post.await;
