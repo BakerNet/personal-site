@@ -1,5 +1,6 @@
 mod ascii;
 mod avatar;
+pub mod blog;
 mod header;
 mod homepage;
 mod terminal;
@@ -8,6 +9,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
 
+use blog::{BlogHome, BlogPage, BlogWrapper};
 use header::Header;
 use homepage::HomePage;
 
@@ -24,6 +26,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
                 <link rel="stylesheet" id="leptos" href="/pkg/personal-site.css" />
                 <link rel="stylesheet" href="/css/devicon.min.css" />
+                <link rel="stylesheet" href="/css/blog.css" />
                 <MetaTags />
             </head>
             <body class="flex flex-col font-mono min-h-screen bg-background text-foreground">
@@ -45,41 +48,17 @@ pub fn App() -> impl IntoView {
         // content for this welcome page
         <Router>
             <Header />
-            <main class="flex flex-col flex-1 mx-auto max-w-full p-8 lg:p-16 xl:p-32">
+            <main class="flex flex-col flex-1 mx-auto max-w-full p-8">
                 <Routes fallback=|| "Page not found.".into_view()>
                     <Route path=path!("/") view=HomePage />
                     <ParentRoute path=path!("/blog") view=BlogWrapper>
                         <Route path=path!("/") view=BlogHome />
-                        <Route path=path!("/:path") view=BlogPage />
+                        <Route path=path!("/:post") view=BlogPage />
                     </ParentRoute>
                     <Route path=path!("/cv") view=CVPage />
                 </Routes>
             </main>
         </Router>
-    }
-}
-
-#[component]
-fn BlogWrapper() -> impl IntoView {
-    view! {
-        <h1 class="font-bold text-2xl text-center">"Blog"</h1>
-        <Outlet />
-    }
-}
-
-#[component]
-fn BlogHome() -> impl IntoView {
-    view! {
-        <Title text="Blog Home" />
-        <div>TODO</div>
-    }
-}
-
-#[component]
-fn BlogPage() -> impl IntoView {
-    view! {
-        <Title text="Blog Page" />
-        <div>TODO</div>
     }
 }
 

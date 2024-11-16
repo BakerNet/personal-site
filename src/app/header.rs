@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use leptos::{either::Either, ev::KeyboardEvent, html, prelude::*};
+use leptos::{either::*, ev::KeyboardEvent, html, prelude::*};
 use leptos_router::{
     components::*,
     hooks::{use_location, use_navigate},
@@ -11,6 +11,8 @@ use leptos_router::{
 use codee::string::JsonSerdeWasmCodec;
 #[cfg(feature = "hydrate")]
 use leptos_use::storage::use_local_storage;
+
+use super::blog::Assets;
 
 use super::terminal::{ColumnarView, CommandRes, Terminal};
 
@@ -31,25 +33,9 @@ struct HistState {
 #[component]
 pub fn Header() -> impl IntoView {
     // TODO - actually get blog posts
-    let blog_posts = vec![
-        "first_post".to_string(),
-        "second_post".to_string(),
-        "third_post".to_string(),
-        "fourth_post".to_string(),
-        "fifth_post".to_string(),
-        "sixth_with_long_name_post".to_string(),
-        "seventh_with_also_long_name_post".to_string(),
-        "eighth_post".to_string(),
-        "ninth_post".to_string(),
-        "tenth_post".to_string(),
-        "eleventh_post".to_string(),
-        "twelfth_woohoo_post".to_string(),
-        "thirteenth_post".to_string(),
-        "fourteenth_with_the_longest_name_post".to_string(),
-        "fifteenth_post".to_string(),
-        "sixteenth_post".to_string(),
-        "last_post".to_string(),
-    ];
+    let blog_posts = Assets::iter()
+        .map(|s| s[..s.len() - 3].to_string())
+        .collect::<Vec<_>>();
     let terminal = StoredValue::new(Arc::new(Mutex::new(Terminal::new(&blog_posts, None))));
     let input_ref = NodeRef::<html::Input>::new();
     let (output_history, set_output_history) =
@@ -161,6 +147,11 @@ pub fn Header() -> impl IntoView {
     };
 
     let tab_replace = move |val: &str, new: &str| {
+        let new = if new.ends_with("*") {
+            &new[..new.len() - 1]
+        } else {
+            &new[..]
+        };
         if let Some(i) = val.rfind("/") {
             let prefix = &val[..i + 1];
             format!("{}{}", prefix, new)
@@ -348,7 +339,8 @@ pub fn Header() -> impl IntoView {
 
     let auto_comp_item = |s: &str, active: bool| {
         let is_dir = s.ends_with("/");
-        let s = if !active && is_dir {
+        let is_ex = s.ends_with("*");
+        let s = if !active && (is_dir || is_ex) {
             s[..s.len() - 1].to_string()
         } else {
             s.to_owned()
@@ -360,14 +352,21 @@ pub fn Header() -> impl IntoView {
                 ""
             }>
                 {if !active && is_dir {
-                    Either::Left(
+                    EitherOf3::A(
                         view! {
                             <span class="text-blue">{s}</span>
                             "/"
                         },
                     )
+                } else if !active && is_ex {
+                    EitherOf3::B(
+                        view! {
+                            <span class="text-green">{s}</span>
+                            "*"
+                        },
+                    )
                 } else {
-                    Either::Right(s)
+                    EitherOf3::C(s)
                 }}
             </span>
         }

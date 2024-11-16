@@ -3,7 +3,7 @@ use std::{collections::VecDeque, sync::Arc};
 use leptos::{either::*, prelude::*};
 use leptos_router::components::*;
 
-const LEN_OF_INDEX: usize = 9;
+const LEN_OF_NAV: usize = 6;
 const CHAR_WIDTH: usize = 9;
 const TERMINAL_MARGINS: usize = 65;
 const MINES_URL: &str = "https://mines.hansbaker.com";
@@ -113,9 +113,9 @@ impl Terminal {
         let target_string = target.to_owned();
         let target_path = path_target_to_target_path(path, target, false);
         let target = Target::from_str(&target_path, &self.blog_posts);
-        let is_executable = matches!(target, Target::File(File::MinesSh | File::Index(_))) && target_string.contains("/"); 
+        let is_executable = matches!(target, Target::File(File::MinesSh | File::Nav(_))) && target_string.contains("/"); 
         if !args.is_empty() && !is_executable {
-            // only mines.sh and index.rs are executable, so only these can accept arguments
+            // only mines.sh and nav.rs are executable, so only these can accept arguments
             return CommandRes::Err(Arc::new(move || format!("command not found: {}", target_string).into_any()));
         }
         match target {
@@ -125,7 +125,7 @@ impl Terminal {
                     return CommandRes::Err(Arc::new(move || format!("not a directory: {}", target_string).into_any()));
                 }
                 match f {
-                    File::Index(s) => {
+                    File::Nav(s) => {
                         CommandRes::Redirect(s)
                     }
                     File::MinesSh => {
@@ -387,6 +387,7 @@ fn path_target_to_target_path(path: &str, target: &str, preserve_dot: bool) -> S
 #[component]
 fn LsView(items: Vec<String>, base: String) -> impl IntoView {
     let dir_class = "text-blue";
+    let ex_class = "text-green";
     let item_clone = items.clone();
     let render_func = {
         let base = base.to_owned();
@@ -404,14 +405,21 @@ fn LsView(items: Vec<String>, base: String) -> impl IntoView {
                     format!("{}/{}", base.to_owned(), s)
                 };
                 // note - adding extra space because trimming trailing '/'
-                Either::Left(view! {
+                EitherOf3::A(view! {
                     <A href=href attr:class=dir_class>
-                        {s.clone()}
+                        {s}
                     </A>
                     " "
                 })
+            } else if s.ends_with("*") {
+                let s = s[..s.len()-1].to_string();
+                // note - adding extra space because trimming trailing '*'
+                EitherOf3::B(view! {
+                    <span class=ex_class>{s}</span>
+                    " "
+                })
             } else {
-                Either::Right(view! { <span>{s}</span> })
+                EitherOf3::C(view! { <span>{s}</span> })
             }.into_any()
         }
     };
@@ -506,13 +514,13 @@ enum Dir {
 impl Dir {
     fn contents(&self, blog_posts: &[String], all: bool) -> Vec<String> {
         let mut common = if all {
-            vec!["./".to_string(), "../".to_string(), "index.rs".to_string()]
+            vec!["./".to_string(), "../".to_string(), "nav.rs*".to_string()]
         } else {
-            vec!["index.rs".to_string()]
+            vec!["nav.rs*".to_string()]
         };
         match self {
             Dir::Base => {
-                let mut items = vec!["blog/".to_string(), "cv/".to_string(), "mines.sh".to_string(), "thanks.txt".to_string()];
+                let mut items = vec!["blog/".to_string(), "cv/".to_string(), "mines.sh*".to_string(), "thanks.txt".to_string()];
                 items.append(&mut common);
                 items.sort();
                 if all {
@@ -550,7 +558,7 @@ impl Dir {
 enum File {
     MinesSh,
     ThanksTxt,
-    Index(String)
+    Nav(String)
 }
 
 impl File {
@@ -558,7 +566,7 @@ impl File {
         match self {
             File::MinesSh => "mines.sh",
             File::ThanksTxt => "thanks.txt",
-            File::Index(_) => "index.rs",
+            File::Nav(_) => "nav.rs",
         }
     }
 
@@ -566,7 +574,7 @@ impl File {
         match self {
             File::MinesSh => MINES_SH.to_string(),
             File::ThanksTxt => THANKS_TXT.to_string(),
-            File::Index(s) => {
+            File::Nav(s) => {
                 let s = if s.is_empty() {"/"} else{s};
                 format!(r#"use leptos::prelude::*;
 use leptos_router::{{hooks::use_navigate, UseNavigateOptions}};
@@ -602,14 +610,14 @@ impl Target {
             }
             "/mines.sh" => Self::File(File::MinesSh),
             "/thanks.txt" => Self::File(File::ThanksTxt),
-            "/index.rs" => Self::File(File::Index("/".to_string())),
-            "/blog/index.rs" | "/cv/index.rs" => Self::File(File::Index(path[..path.len() -LEN_OF_INDEX].to_string())),
-            post_index
-                if post_index.starts_with("/blog/")
-                    && post_index.ends_with("/index.rs")
-                    && blog_post_exists(&post_index[..post_index.len() - LEN_OF_INDEX], blog_posts) =>
+            "/nav.rs" => Self::File(File::Nav("/".to_string())),
+            "/blog/nav.rs" | "/cv/nav.rs" => Self::File(File::Nav(path[..path.len() -LEN_OF_NAV].to_string())),
+            post_nav
+                if post_nav.starts_with("/blog/")
+                    && post_nav.ends_with("/nav.rs")
+                    && blog_post_exists(&post_nav[..post_nav.len() - LEN_OF_NAV], blog_posts) =>
             {
-                Self::File(File::Index(path[..path.len()-LEN_OF_INDEX].to_string()))
+                Self::File(File::Nav(path[..path.len()-LEN_OF_NAV].to_string()))
             }
             _ => Self::Invalid,
         }

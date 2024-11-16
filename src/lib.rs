@@ -1,4 +1,6 @@
 pub mod app;
+#[cfg(feature = "ssr")]
+mod highlight;
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]
