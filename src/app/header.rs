@@ -422,6 +422,8 @@ pub fn Header() -> impl IntoView {
                                 on:keydown=keydown_handler
                                 type="text"
                                 placeholder="Type a command (try 'help')"
+                                // autocorrect="off"
+                                autocapitalize="none"
                                 class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-brightBlack"
                             />
                         </div>
