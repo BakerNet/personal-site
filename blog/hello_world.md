@@ -2,6 +2,8 @@
 title: Hello World
 author: Hans Baker
 date: "2024-11-15T12:00:00Z"
+tags:
+    - meta
 ---
 
 # Hello World

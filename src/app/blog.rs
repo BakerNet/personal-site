@@ -21,7 +21,8 @@ use std::sync::LazyLock;
 use crate::highlight::highlight;
 
 #[cfg(feature = "ssr")]
-static GLOBAL_POST_CACHE: LazyLock<DashMap<String, String>> = LazyLock::new(DashMap::new);
+static GLOBAL_POST_CACHE: LazyLock<DashMap<String, Result<Post, ServerFnError>>> =
+    LazyLock::new(DashMap::new);
 #[cfg(feature = "ssr")]
 static GLOBAL_META_CACHE: LazyLock<DashMap<String, Vec<PostMeta>>> = LazyLock::new(DashMap::new);
 
@@ -48,6 +49,7 @@ struct FrontMatter {
     title: String,
     author: String,
     date: DateTime<Utc>,
+    tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +58,7 @@ pub struct PostMeta {
     title: String,
     author: String,
     date: DateTime<Utc>,
+    tags: Vec<String>,
 }
 
 #[server(input = GetUrl)]
@@ -81,6 +84,7 @@ pub async fn get_meta() -> Result<Vec<PostMeta>, ServerFnError> {
                         title: fm.data.title,
                         author: fm.data.author,
                         date: fm.data.date,
+                        tags: fm.data.tags,
                     })
                 })
                 .collect::<Result<Vec<PostMeta>, ServerFnError>>();
@@ -104,7 +108,8 @@ pub fn BlogHome() -> impl IntoView {
     view! {
         <Title text="Blog Home" />
         <div>
-            <div>"$ ls -ot blog"</div>
+            <div class="bg-black p-2 rounded-md">"$ ls -lt blog"</div>
+            <br />
             <Suspense>
                 {move || Suspend::new(async move {
                     let posts = posts.await;
@@ -112,12 +117,25 @@ pub fn BlogHome() -> impl IntoView {
                         .into_iter()
                         .map(|post| {
                             view! {
-                                <div>
-                                    <A attr:class="text-lg" href=post.name>
-                                        "drw-r--r-- hans "
-                                        <span>{format!("{}", post.date.format("%b %e %Y"))}</span>
-                                        " "
-                                        <span class="text-blue">{post.title}</span>
+                                <div class="mb-4">
+                                    <A attr:class="text-lg leading-tight" href=post.name>
+                                        <div>
+                                            "drw-r--r-- hans "
+                                            <span>{format!("{}", post.date.format("%b %e %Y"))}</span>
+                                            " " <span class="text-blue">{post.title}</span>
+                                        </div>
+                                        <div>
+                                            {post
+                                                .tags
+                                                .iter()
+                                                .map(|s| format!("#{}", s))
+                                                .fold(
+                                                    String::new(),
+                                                    |acc, s| {
+                                                        if acc.is_empty() { s } else { format!("{}, {}", acc, s) }
+                                                    },
+                                                )}
+                                        </div>
                                     </A>
                                 </div>
                             }
@@ -129,25 +147,51 @@ pub fn BlogHome() -> impl IntoView {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Post {
+    meta: PostMeta,
+    content: String,
+}
+
 #[server(input = GetUrl)]
-pub async fn get_post(name: String) -> Result<String, ServerFnError> {
+pub async fn get_post(name: String) -> Result<Post, ServerFnError> {
     let content = Assets::get(&name).ok_or(ServerFnError::new("Blog post not found"))?;
 
     let cache = &*GLOBAL_POST_CACHE;
-    Ok(cache
-        .entry(name)
+    cache
+        .entry(name.clone())
         .or_insert_with(move || {
+            let matter = Matter::<YAML>::new();
             let content =
                 &String::from_utf8(content.data.into()).expect("Couldn't parse blog post");
+
+            let fm = matter
+                .parse_with_struct::<FrontMatter>(content)
+                .ok_or_else(|| {
+                    logging::error!("Unable to parse meta for {}", name);
+                    ServerFnError::new("Couldn't parse blog posts")
+                })?;
+            let meta = PostMeta {
+                name: name[..name.len() - 3].to_string(),
+                title: fm.data.title,
+                author: fm.data.author,
+                date: fm.data.date,
+                tags: fm.data.tags,
+            };
+
             let parser = Parser::new_ext(content, Options::all());
             let parser = highlight(parser);
 
             // Write to a new String buffer.
             let mut html_output = String::new();
             pulldown_cmark::html::push_html(&mut html_output, parser);
-            html_output
+
+            Ok(Post {
+                meta,
+                content: html_output,
+            })
         })
-        .to_string())
+        .clone()
 }
 
 #[component]
@@ -158,20 +202,42 @@ pub fn BlogPage() -> impl IntoView {
         // take ownership of name
         let name = name;
         let name = format!("{}.md", name);
-        let post = get_post(name).await;
-        match post {
-            Ok(s) => s,
-            Err(e) => e.to_string(),
-        }
+        get_post(name).await
     });
     view! {
         <Title text="Blog Page" />
-        <div>"$ cat "{post_name}".md"</div>
-        <Suspense>
-            {move || Suspend::new(async move {
-                let post = post.await;
-                view! { <div inner_html=post></div> }
-            })}
-        </Suspense>
+        <div>
+            <div class="bg-black p-2 rounded-md">"$ cat "{post_name}".md"</div>
+            <br />
+            <Suspense>
+                {move || Suspend::new(async move {
+                    let post = post.await;
+                    post.map(|p| {
+                        view! {
+                            <div>
+                                {format!(
+                                    "{} | {} | tags: {}",
+                                    p.meta.author,
+                                    p.meta.date.format("%b %e, %Y"),
+                                    p
+                                        .meta
+                                        .tags
+                                        .iter()
+                                        .map(|s| format!("#{}", s))
+                                        .fold(
+                                            String::new(),
+                                            |acc, s| {
+                                                if acc.is_empty() { s } else { format!("{}, {}", acc, s) }
+                                            },
+                                        ),
+                                )}
+                            </div>
+                            <br />
+                            <div inner_html=p.content></div>
+                        }
+                    })
+                })}
+            </Suspense>
+        </div>
     }
 }
