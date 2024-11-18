@@ -392,7 +392,8 @@ pub fn Header() -> impl IntoView {
                             },
                         )
                     }
-                }} <div class="flex flex-wrap items-center justify-between">
+                }}
+                <div class="flex flex-wrap items-center justify-between">
                     <h1 class="text-2xl font-bold mr-4">
                         {move || {
                             let err = is_err.get();
@@ -469,45 +470,24 @@ pub fn Header() -> impl IntoView {
 
 #[component]
 fn Ps1(is_err: bool, path: String, with_links: bool) -> impl IntoView {
+    let path_git = view! {
+        <span class="text-cyan">{path.to_string()}</span>
+        " "
+        <span class="text-blue">
+            <span>"git:("</span>
+            <span class="text-red">"main"</span>
+            <span>")"</span>
+        </span>
+    };
     view! {
         <span class=move || { if is_err { "text-red" } else { "text-green" } }>"➜"</span>
         " "
         {if with_links {
-            Either::Left({
-                let path = path.to_string();
-                view! {
-                    <A href="/" attr:class="text-cyan">
-                        {path}
-                    </A>
-                }
+            Either::Left(view! {
+                <A href="/">{path_git}</A>
             })
         } else {
-            Either::Right(view! { <span class="text-cyan">{path.to_string()}</span> })
-        }}
-        " "
-
-        {if with_links {
-            Either::Left(
-                view! {
-                    <A href="https://github.com/BakerNet/personal-site">
-                        <span class="text-blue">
-                            <span>"git:("</span>
-                            <span class="text-red">"main"</span>
-                            <span>")"</span>
-                        </span>
-                    </A>
-                },
-            )
-        } else {
-            Either::Right(
-                view! {
-                    <span class="text-blue">
-                        <span>"git:("</span>
-                        <span class="text-red">"main"</span>
-                        <span>")"</span>
-                    </span>
-                },
-            )
+            Either::Right(path_git)
         }}
         ""
         <span class="text-yellow">"✗"</span>

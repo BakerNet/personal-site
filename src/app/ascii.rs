@@ -65,13 +65,13 @@ pub const INFO_BLOCK: [&str; 20] = [
     INFO_ROW_19,
 ];
 
-pub static INFO_ROW_0: &str = r#"<a href="mailto:contact@hansbaker.com" target="_blank"><span class="text-brightCyan">contact</span>@<span class="text-brightCyan">hansbaker.com</span></a> <button class="text-brightWhite" onclick="navigator.clipboard.writeText('contact@hansbaker.com').then(() => alert('copied: contact@hansbaker.com'))">🗐</button>"#;
+pub static INFO_ROW_0: &str = r#"<a href="mailto:contact@hansbaker.com" target="_blank"><span class="text-brightCyan">contact</span>@<span class="text-brightCyan">hansbaker.com</span></a> <button class="text-brightWhite" onclick="navigator.clipboard.writeText('contact@hansbaker.com').then(() => alert('copied: contact@hansbaker.com'))">📋</button>"#;
 pub static INFO_ROW_1: &str = r#"---------------------"#;
 pub static INFO_ROW_2: &str = r#"<span class="text-brightCyan">Name</span>: Hans Baker"#;
 pub static INFO_ROW_3: &str = r#"<span class="text-brightCyan">Location</span>: USA"#;
 pub static INFO_ROW_4: &str =
     r#"<span class="text-brightCyan">Occupation</span>: Software Engineering Leader"#;
-pub static INFO_ROW_5: &str = r#"<span class="text-brightCyan">Years Exp</span>: 8"#;
+pub static INFO_ROW_5: &str = r#"<span class="text-brightCyan">Years Exp</span>: 8+"#;
 pub static INFO_ROW_6: &str = r#"<span class="text-brightCyan">Languages</span>: <i class="devicon-go-plain text-brightWhite"></i> Go, <i class="devicon-rust-plain text-brightWhite"></i> Rust, <i class="devicon-python-plain text-brightWhite"></i> Python, <i class="devicon-typescript-plain text-brightWhite"></i> TypeScript... Adaptable"#;
 pub static INFO_ROW_7: &str = r#"<span class="text-brightCyan">Tech</span>: <i class="devicon-postgresql-plain text-brightWhite"></i> Postgres, <i class="devicon-redis-plain text-brightWhite"></i> Redis, <i class="devicon-docker-plain text-brightWhite"></i> Docker, <i class="devicon-terraform-plain text-brightWhite"></i> Terraform... Resourceful"#;
 pub static INFO_ROW_8: &str = r#"<span class="text-brightCyan">Soft Skills</span>: Leadership, communication, collaboration... Interpersonal"#;
@@ -80,7 +80,7 @@ pub static INFO_ROW_10: &str = r#"<span class="text-brightCyan">Education</span>
 pub static INFO_ROW_11: &str =
     r#"<span class="text-brightCyan">Dev Env</span>: Tmux & Neovim in WSL2 (tty)"#;
 pub static INFO_ROW_12: &str =
-    r#"<span class="text-brightCyan">Coffee</span> Black as midnight on a moonless night"#;
+    r#"<span class="text-brightCyan">Coffee</span>: Black as midnight on a moonless night"#;
 pub static INFO_ROW_13: &str =
     r#"<span class="text-brightCyan">Hobbies</span>: Far too many... 😅"#;
 pub static INFO_ROW_14: &str = r#""#;

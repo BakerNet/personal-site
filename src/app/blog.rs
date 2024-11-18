@@ -128,13 +128,9 @@ pub fn BlogHome() -> impl IntoView {
                                             {post
                                                 .tags
                                                 .iter()
-                                                .map(|s| format!("#{}", s))
-                                                .fold(
-                                                    String::new(),
-                                                    |acc, s| {
-                                                        if acc.is_empty() { s } else { format!("{}, {}", acc, s) }
-                                                    },
-                                                )}
+                                                .map(|s| view!{
+                                                    <span class="rounded-md px-1 bg-brightBlack mr-2">"#"{s.to_string()}</span>
+                                                }).collect_view()}
                                         </div>
                                     </A>
                                 </div>

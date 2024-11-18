@@ -58,6 +58,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/cv") view=CVPage />
                 </Routes>
             </main>
+            <Footer />
         </Router>
     }
 }
@@ -81,5 +82,23 @@ fn CVPage() -> impl IntoView {
                 <i class="devicon-linkedin-plain" />
             </a>
         </div>
+    }
+}
+
+#[component]
+fn Footer() -> impl IntoView {
+    view! {
+        <footer class="border-t border-black">
+            <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4 leading-tight">
+                <div class="flex flex-col lg:flex-row-reverse justify-between items-center">
+                    <div>
+                        <a class="text-white mx-1" href="https://github.com/BakerNet"><i class="devicon-github-plain" /></a>
+                        <a class="text-blue mx-1" href="https://linkedin.com/in/hansbaker"><i class="devicon-linkedin-plain" /></a>
+                    </div>
+                    <div class="text-center">"© Hans Baker, 2024. All rights reserved"</div>
+                    <div>"Built with Rust & Leptos"</div>
+                </div>
+            </div>
+        </footer>
     }
 }
