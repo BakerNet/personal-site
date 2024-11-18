@@ -90,13 +90,13 @@ fn Footer() -> impl IntoView {
     view! {
         <footer class="border-t border-black">
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4 leading-tight">
-                <div class="flex flex-col lg:flex-row-reverse justify-between items-center">
-                    <div>
+                <div class="grid grid-cols-1 lg:grid-cols-3">
+                    <div class="order-first text-center lg:order-last lg:text-right">
                         <a class="text-white mx-1" href="https://github.com/BakerNet"><i class="devicon-github-plain" /></a>
                         <a class="text-blue mx-1" href="https://linkedin.com/in/hansbaker"><i class="devicon-linkedin-plain" /></a>
                     </div>
                     <div class="text-center">"© Hans Baker, 2024. All rights reserved"</div>
-                    <div>"Built with Rust & Leptos"</div>
+                    <div class="order-last text-center lg:order-first lg:text-left">"Built with Rust & Leptos"</div>
                 </div>
             </div>
         </footer>
