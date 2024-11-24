@@ -1,29 +1,25 @@
 use chrono::{DateTime, Utc};
+use dashmap::DashMap;
 use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::{components::*, hooks::use_params_map};
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
 use server_fn::codec::GetUrl;
+use std::sync::LazyLock;
 
-#[cfg(feature = "ssr")]
-use dashmap::DashMap;
 #[cfg(feature = "ssr")]
 use gray_matter::{engine::YAML, Matter};
 #[cfg(feature = "ssr")]
 use leptos::logging;
 #[cfg(feature = "ssr")]
 use pulldown_cmark::{Options, Parser};
-#[cfg(feature = "ssr")]
-use std::sync::LazyLock;
 
 #[cfg(feature = "ssr")]
 use crate::highlight::highlight;
 
-#[cfg(feature = "ssr")]
 static GLOBAL_POST_CACHE: LazyLock<DashMap<String, Result<Post, ServerFnError>>> =
     LazyLock::new(DashMap::new);
-#[cfg(feature = "ssr")]
 static GLOBAL_META_CACHE: LazyLock<DashMap<String, Vec<PostMeta>>> = LazyLock::new(DashMap::new);
 
 #[derive(Embed)]
@@ -37,7 +33,7 @@ pub fn BlogWrapper() -> impl IntoView {
         <h1 class="font-bold text-2xl text-center mb-8">
             <a href="/blog">"Hans Baker's Blog"</a>
         </h1>
-        <div id="blog_content" class="w-[80rem] max-w-full text-left">
+        <div id="blog_content" class="w-[80rem] max-w-full mx-auto text-left">
             <Outlet />
         </div>
     }
@@ -103,7 +99,15 @@ pub async fn get_meta() -> Result<Vec<PostMeta>, ServerFnError> {
 pub fn BlogHome() -> impl IntoView {
     let posts = Resource::new(
         || (),
-        move |_| async { get_meta().await.unwrap_or(Vec::new()) },
+        move |_| async {
+            let cache = &*GLOBAL_META_CACHE;
+            if let Some(s) = cache.get(&"".to_string()) {
+                return (*s).clone();
+            }
+            let meta = get_meta().await.unwrap_or(Vec::new());
+            cache.insert("".to_string(), meta.clone());
+            meta
+        },
     );
     view! {
         <Title text="Blog Home" />
@@ -128,9 +132,14 @@ pub fn BlogHome() -> impl IntoView {
                                             {post
                                                 .tags
                                                 .iter()
-                                                .map(|s| view!{
-                                                    <span class="rounded-md px-1 bg-brightBlack mr-2">"#"{s.to_string()}</span>
-                                                }).collect_view()}
+                                                .map(|s| {
+                                                    view! {
+                                                        <span class="rounded-md px-1 bg-brightBlack mr-2">
+                                                            "#"{s.to_string()}
+                                                        </span>
+                                                    }
+                                                })
+                                                .collect_view()}
                                         </div>
                                     </A>
                                 </div>
@@ -151,6 +160,7 @@ pub struct Post {
 
 #[server(input = GetUrl)]
 pub async fn get_post(name: String) -> Result<Post, ServerFnError> {
+    let name = format!("{}.md", name);
     let content = Assets::get(&name).ok_or(ServerFnError::new("Blog post not found"))?;
 
     let cache = &*GLOBAL_POST_CACHE;
@@ -197,8 +207,13 @@ pub fn BlogPage() -> impl IntoView {
     let post = Resource::new(post_name, move |name| async {
         // take ownership of name
         let name = name;
-        let name = format!("{}.md", name);
-        get_post(name).await
+        let cache = &*GLOBAL_POST_CACHE;
+        if let Some(s) = cache.get(&"".to_string()) {
+            return (*s).clone();
+        }
+        let post_data = get_post(name).await;
+        cache.insert("".to_string(), post_data.clone());
+        post_data
     });
     view! {
         <Title text="Blog Page" />

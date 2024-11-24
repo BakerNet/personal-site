@@ -392,9 +392,8 @@ pub fn Header() -> impl IntoView {
                             },
                         )
                     }
-                }}
-                <div class="flex flex-wrap items-center justify-between">
-                    <h1 class="text-2xl font-bold mr-4">
+                }} <div class="flex flex-wrap items-center justify-between">
+                    <div class="text-2xl font-bold mr-4">
                         {move || {
                             let err = is_err.get();
                             let pathname = use_location().pathname.get();
@@ -402,7 +401,7 @@ pub fn Header() -> impl IntoView {
                             view! { <Ps1 is_err=err path=dir with_links=true /> }
                         }}
 
-                    </h1>
+                    </div>
                     <form
                         class="flex-1 min-w-64"
                         on:submit=move |ev| {
@@ -425,7 +424,7 @@ pub fn Header() -> impl IntoView {
                                 placeholder="Type a command (try 'help')"
                                 // autocorrect="off"
                                 autocapitalize="none"
-                                class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-brightBlack"
+                                class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-brightBlack bg-background text-foreground"
                             />
                         </div>
                     </form>
@@ -483,9 +482,7 @@ fn Ps1(is_err: bool, path: String, with_links: bool) -> impl IntoView {
         <span class=move || { if is_err { "text-red" } else { "text-green" } }>"➜"</span>
         " "
         {if with_links {
-            Either::Left(view! {
-                <A href="/">{path_git}</A>
-            })
+            Either::Left(view! { <A href="/">{path_git}</A> })
         } else {
             Either::Right(path_git)
         }}

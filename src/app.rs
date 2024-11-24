@@ -48,7 +48,7 @@ pub fn App() -> impl IntoView {
         // content for this welcome page
         <Router>
             <Header />
-            <main class="flex flex-col flex-1 mx-auto max-w-full p-8">
+            <main class="flex flex-col flex-1 w-full p-8 lg:p-12">
                 <Routes fallback=|| "Page not found.".into_view()>
                     <Route path=path!("/") view=HomePage />
                     <ParentRoute path=path!("/blog") view=BlogWrapper>
@@ -67,20 +67,22 @@ pub fn App() -> impl IntoView {
 fn CVPage() -> impl IntoView {
     view! {
         <Title text="CV / Resume" />
-        <h1 class="font-bold text-2xl text-center mb-8">"CV / Resume"</h1>
-        <div class="text-center">
-            <div class="bg-brightBlack text-yellow font-bold px-4 py-2 mb-4 inline-block rounded-lg border-4 border-yellow">
-                <span class="animate-blink">"🚧"</span>
-                " Under Construction "
-                <span class="animate-blink">"🚧"</span>
+        <div class="grid mx-auto">
+            <h1 class="font-bold text-2xl text-center mb-8">"CV / Resume"</h1>
+            <div class="text-center">
+                <div class="bg-brightBlack text-yellow font-bold px-4 py-2 mb-4 inline-block rounded-lg border-4 border-yellow">
+                    <span class="animate-blink">"🚧"</span>
+                    " Under Construction "
+                    <span class="animate-blink">"🚧"</span>
+                </div>
             </div>
-        </div>
-        <div class="text-center">
-            "In the meantime, check out my "
-            <a class="text-blue" href="https://linkedin.com/in/hansbaker">
-                "Linked"
-                <i class="devicon-linkedin-plain" />
-            </a>
+            <div class="text-center">
+                "In the meantime, check out my "
+                <a class="text-blue" href="https://linkedin.com/in/hansbaker">
+                    "Linked"
+                    <i class="devicon-linkedin-plain" />
+                </a>
+            </div>
         </div>
     }
 }
@@ -92,11 +94,17 @@ fn Footer() -> impl IntoView {
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4 leading-tight">
                 <div class="grid grid-cols-1 lg:grid-cols-3">
                     <div class="order-first text-center lg:order-last lg:text-right">
-                        <a class="text-white mx-1" href="https://github.com/BakerNet"><i class="devicon-github-plain" /></a>
-                        <a class="text-blue mx-1" href="https://linkedin.com/in/hansbaker"><i class="devicon-linkedin-plain" /></a>
+                        <a class="text-2xl text-white mx-1" href="https://github.com/BakerNet">
+                            <i class="devicon-github-plain" />
+                        </a>
+                        <a class="text-2xl text-blue mx-1" href="https://linkedin.com/in/hansbaker">
+                            <i class="devicon-linkedin-plain" />
+                        </a>
                     </div>
                     <div class="text-center">"© Hans Baker, 2024. All rights reserved"</div>
-                    <div class="order-last text-center lg:order-first lg:text-left">"Built with Rust & Leptos"</div>
+                    <div class="order-last text-center lg:order-first lg:text-left">
+                        "Built with Rust & Leptos"
+                    </div>
                 </div>
             </div>
         </footer>
