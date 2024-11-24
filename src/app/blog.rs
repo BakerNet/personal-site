@@ -208,7 +208,7 @@ pub fn BlogPage() -> impl IntoView {
         // take ownership of name
         let name = name;
         let cache = &*GLOBAL_POST_CACHE;
-        if let Some(s) = cache.get(&"".to_string()) {
+        if let Some(s) = cache.get(&name) {
             return (*s).clone();
         }
         let post_data = get_post(name).await;
