@@ -37,3 +37,45 @@
 #blog_content a {
     color: #81a1c1;
 }
+
+#blog_content ul li:before {
+    content: "•";
+    text-align: right;
+    padding-right: 0.5em;
+    color: #81a1c1;
+    display: inline-block;
+    width: 1em;
+}
+
+#blog_content ul li li:before {
+    content: "◦";
+    text-align: right;
+    padding-right: 0.5em;
+    color: #81a1c1;
+    display: inline-block;
+    width: 2em;
+}
+
+#blog_content strong:before {
+    content: "**";
+}
+
+#blog_content strong:after {
+    content: "**";
+}
+
+#blog_content em:before {
+    content: "_";
+}
+
+#blog_content em:after {
+    content: "_";
+}
+
+#blog_content a:before {
+    content: "[";
+}
+
+#blog_content a:after {
+    content: "]";
+}
