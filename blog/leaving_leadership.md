@@ -130,11 +130,11 @@ The above list is roughly in chronological order of how these factors came to pl
 
 ## Aside on the Peter Principle {#aside-peter-principal}
 
-I assume there will likely be readers of this blog post that immediately think of the [Peter Principle](https://en.wikipedia.org/wiki/Peter_principle); that I just rose to my level of incompetence.  This was almost certainly true at least for my first year in the role - I was not competent as a director of an engineering department.  However, I actually think I have strong aptitudes for leadership and honestly believe I handled the job well beyond my experience level.
+I assume there will likely be readers of this blog post that immediately think of the [Peter principle](https://en.wikipedia.org/wiki/Peter_principle); that I just rose to my level of incompetence.  This was almost certainly true at least for my first year in the role - I was not competent as a director of an engineering department.  However, I actually think I have strong aptitudes for leadership and honestly believe I handled the job well beyond my experience level.
 
 I was learning, improving, and taking the role very seriously.  I didn't get fired from the position.  There's no doubt in my mind that a more experienced leader could have done a better job than I did in the director role.  There's also no doubt in my mind that if I had more experience with other companies before joining Multi Media LLC, I would have been more effective and more confidant in my intuitions.
 
-Focusing on the Peter Principle would miss the point of this blog post.
+Focusing on the Peter principle would miss the point of this blog post.
 
 ## Summary {#summary}
 
