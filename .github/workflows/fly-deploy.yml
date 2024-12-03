@@ -29,7 +29,7 @@ jobs:
         [[ -n "$CLOUDFLARE_TOKEN" ]] || \
           ( echo "Error: Must set CLOUDFLARE_TOKEN secret"; exit 1 )
         curl -sS -X POST \
-          "https://api.cloudflare.com/client/v4/zones/hansbaker.com/purge_cache" \
+          "https://api.cloudflare.com/client/v4/zones/ff163f5e0b86948e108ef2cfa967d0fd/purge_cache" \
           -H "Authorization: Bearer $CLOUDFLARE_TOKEN" \
           -H "Content-Type: application/json" \
           --data '{"purge_everything": true}'
