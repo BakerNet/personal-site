@@ -33,7 +33,7 @@ pub fn BlogWrapper() -> impl IntoView {
         <h1 class="font-bold text-2xl text-center mb-8">
             <a href="/blog">"Hans Baker's Blog"</a>
         </h1>
-        <div id="blog_content" class="w-[80rem] max-w-full mx-auto text-left">
+        <div class="w-[80rem] max-w-full mx-auto text-left">
             <Outlet />
         </div>
     }
@@ -217,7 +217,7 @@ pub fn BlogPage() -> impl IntoView {
     });
     view! {
         <Title text="Blog Page" />
-        <div>
+        <div id="blog_content">
             <div class="bg-black p-2 rounded-md">"$ cat "{post_name}".md"</div>
             <br />
             <Suspense>
