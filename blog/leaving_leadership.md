@@ -1,7 +1,7 @@
 ---
 title: "Why I Stepped Down from Leadership:  Reflections on my return to engineering"
 author: Hans Baker
-date: "2024-11-24T12:00:00Z"
+date: "2024-11-30T12:00:00Z"
 tags:
     - work
 ---
@@ -16,7 +16,7 @@ If you are short on time, skip to [Factors for my Decision](#factors-for-my-deci
 
 ## Background {#background}
 
-I started my path into computer science and later software engineering was because of my love for [formal logic](https://en.wikipedia.org/wiki/Logic#Formal_logic) (more on that in a future blog post).  Computer science, to me, felt like the perfect extension: applied logic on action.  I became a software engineer not for the money — though that’s a nice bonus - nor solely for the products I build, but for the joy of exercising applied logic.
+I started my path into computer science and later software engineering because of my love for [formal logic](https://en.wikipedia.org/wiki/Logic#Formal_logic) (more on that in a future blog post).  Computer science, to me, felt like the perfect extension: applied logic in action.  I became a software engineer not for the money — though that’s a nice bonus - nor solely for the products I build, but for the joy of exercising applied logic.
 
 I have spent my entire tech career at Multi Media LLC, climbing the ladder from Junior Engineer to Head of Engineering.  Despite Multi Media LLC's significant revenue and scale, the company has remained relatively small in size, providing unique opportunities to have impact.  There were less than 10 engineers when I joined and the engineering department is still well less than 100 in all roles.
 
@@ -24,7 +24,7 @@ I take a pride in delivering my best work regardless of role, an attitude which 
 
 I ended up having a very successful project built using our in-house TypeScript framework.  After successfully delivering this project, I was brought in to rescue a rewrite of our most interactive page which had gone underwater.  What had been stuck in QA for months, I was able to get out the door in a few weeks.
 
-This success lead the Head of Engineering to entrust me with reviewing _all_ frontend changes company-wide, setting the stage for my leadership.  I tried my best to elevate the quality of work the team was contributing but made sure to always be respectful and professional.  When the Head of Engineering decided to break up the team into a Frontend Team and a Backend Team, I volunteered to be the Engineering Manager of the Frontend Team.  
+This success lead the Head of Engineering to entrust me with reviewing _all_ frontend changes company-wide.  I tried my best to elevate the quality of work the team was contributing but made sure to always be respectful and professional.  When the Head of Engineering decided to break up the team into a Frontend Team and a Backend Team, I volunteered to be the Engineering Manager of the Frontend Team.  
 
 I really enjoyed being a manager.  Seeing the tangible impact of my mentorship and my team's progress was incredibly fulfilling.
 
@@ -34,19 +34,20 @@ There was no doubt in my mind I would enjoy the role.
 
 ## Head of Engineering Role {#head-of-engineering-role}
 
-My journey as Head of Engineering has been a dynamic path of continuous growth and learning. To make sense of it, I’ve divided this period into distinct 'eras,' each marked by its own challenges, milestones, and lessons.
+My journey as Head of Engineering was a dynamic path of continuous growth and learning. To make sense of it, I’ve divided this period into distinct 'eras,' each marked by its own challenges, milestones, and lessons.
 
 ### Early Days {#early-days}
 
 When I first took over as the Head of Engineering at Multi Media LLC, we had a Matrix organization structure where Software Engineers were directly reporting to PMs for day-to-day work and management, but they also all indirectly reported to me.  This meant I had a couple dozen "direct" reports, but management did not take a large amount of my time.
 
-During this period, I did have a great impact on developer experience and processes.  We moved to a containerized development environment, which improved onboarding by ordered of magnitude.  I made some meaningful improvements to developer experience on the frontend.  I worked on improving other aspects of our onboarding process.  I started meeting with our QA leaders to address issues and improve efficiency.  I also of course performed 1-on-1's with engineers to support their growth and development.
+During this period, I had a great impact on developer experience and processes.  We moved to a containerized development environment, which improved onboarding by orders of magnitude.  I worked on improving other aspects of our onboarding process.  I made some meaningful improvements to developer experience on the frontend as well.  I started meeting with our QA leaders to address issues and improve efficiency.  I also of course performed 1-on-1's with engineers to support their growth and development.
 
 When I took over, I immediately tackled some outdated policies.  Some examples:
-- We had policy of not adding code comments
-- Engineers were required to set styles directly using DOM API instead of CSS/SCSS
+- We had a policy of not adding code comments
+- Engineers were required to set styles for TypeScript components directly using DOM API instead of CSS/SCSS
 - We supported all browsers back to IE8
   - This required many polyfills and avoiding modern CSS but provided no revenue
+
 Changes to policies like these had a meaningful positive impact on productivity.
 
 We had not invested in upgrading our dependencies in years.  We were still on Python 2 our version of Django was 2 years past LTS.  I ensured we had resources to bring our tech stack into the modern age.  I directly contributed to these efforts on the frontend.
@@ -63,29 +64,31 @@ I didn't _really_ grow into being a true leader because the demands of the role 
 
 This was the beginning of a major mindset shift for me.  I needed to evolve into a true leader, grow engineers into managers, learn to delegate, and spearhead organizational change.
 
-My early missteps laid the foundation for the intentional leadership style I've since developed.  I committed to my growth and embraced director-level director-level responsibilities with focus and determination.
+My early missteps laid the foundation for the intentional leadership style I've since developed.  I committed to my growth and embraced director-level responsibilities with focus and determination.
 
 ### Becoming a Director {#becoming-a-director}
 
-We reorganized the team so that all of the engineering department was truly reporting up to me - I wasn't just the guy who needed to sign off on promotions.  I interviewed all of the engineers to identify people who had the aptitude and interest in becoming a manager.  We formed a management group and for the most part kept the teams of engineers together during this transition.  It was exciting to be trying something new.
+We reorganized the team so that all of the engineering department was truly reporting up to me - I wasn't just the guy who needed to sign off on promotions anymore.  I interviewed all of the engineers to identify people who had the aptitude and interest in becoming a manager.  We formed a management group and for the most part kept the existing teams of engineers together during this transition.  It was exciting to be trying something new.
 
 Stepping into the director role required me to step back from hands-on technical work.  I could no longer afford to spend half my hours in the code.  I identified an engineer who could take over as the frontend lead and handed over the reigns.
 
 I started taking management training courses and studying hiring practices.  I took classes on creating high performing technical teams and organizational leadership.  I was learning a lot and directly applying what I was learning.
 
-During this time, I created a career ladder document with competency descriptions, performance metrics, development paths, growth opportunities, and a matrix for managers to use with their reports.  With real performance management in place, we could compare engineers more objectively, and give engineers a clear path to promotion.  The Talent Acquisition team and I collaborated to overhaul our hiring process.  We created formalized rubrics to reduce interviewer bias and compare candidates fairly.
+During this time, I created a career ladder document with competency descriptions, performance metrics, development paths, growth opportunities, and a matrix for managers to use with their reports.  With real performance management in place, we could evaluate performance more objectively, and give engineers a clear path to promotion.  The Talent Acquisition team and I collaborated to overhaul our hiring process.  We created formalized rubrics to reduce interviewer bias and compare candidates fairly.
 
 After I was introduced to the concept of [Trunk-Based Development](https://trunkbaseddevelopment.com), I spearheaded its adoption across the engineering department.  I applied my new skills to make the migration as effective and smooth as possible, and to great effect.  TBD almost entirely eliminated merge conflicts, forced better planning practices, and allowed us to deploy to production almost daily with less risk.  Upper management could also now test in-development features in production, which they greatly appreciate.
 
 I was working on creating a vision to move forward with, rather than just going with the flow.  I was executing the company strategy and creating alignment of the engineering department with company goals.
 
-All of these things were good and correct actions to take.  I'm very proud of how I was leading the team and the changes I was making.  **But I wasn't having fun**.  I wasn't passionate about leading like I was about software engineering.
+All of these things were good and correct actions to take.  I'm very proud of how I was leading the team and the changes I was making.  **But I wasn't enjoying the work**.  I wasn't passionate about leading like I was about software engineering.
 
 ### Reckoning Phase {#reckoning-phase}
 
-I learned that I have a deep need for frequent mental stimulation.  I have come to suspect that I have undiagnosed ADHD, which would explain the need for frequent mental stimulation.  Coding satisfied that need quite well.  Leadership didn't.
+I learned that I have a deep need for frequent mental stimulation.  I have come to suspect that I have undiagnosed ADHD, which would explain that.  Coding satisfied that need quite well; leadership didn't.
 
-I dreaded leadership courses, policy document, and meeting - tasks that felt routine rather than mentally stimulating.  The work did not require the analytical parts of my brain which were screaming for attention.  While I knew the work I was doing was impactful and beneficial, I found myself unable to truly feel the victories.  When the engineering teams achieved success, I felt more like I was a cheerleader on the sidelines rather than an active participant.  The growing distance created by the hierarchy left me feeling detached, with little sense of accomplishment.
+I dreaded leadership courses, policy documents, and meetings - tasks that felt routine rather than mentally stimulating.  The work did not require the analytical parts of my brain which were screaming for attention.
+
+While I knew the work I was doing was impactful and beneficial, I found myself unable to truly feel the victories.  When the engineering teams achieved success, I felt more like I was a cheerleader on the sidelines rather than an active participant.  The growing distance created by the hierarchy left me feeling detached, with little sense of accomplishment.
 
 I started to crave technical challenges outside of work, as my role no longer provided the mental stimulation nor the rewarding feedback loop I deeply valued.  Fortunately, around this time I stumbled upon a [ThePrimeagen](https://www.youtube.com/theprimeagen) YouTube video where he was very clearly enjoying himself while coding.  It inspired me to pick programming back up as a hobby... And oh did it feel good to get back to my roots.  I taught myself Vim motions, became better at using the terminal, picked up Rust, and built projects again.
 
@@ -141,6 +144,6 @@ When the new Head of Engineering took over earlier this year, I began transition
 
 Leadership was a meaningful chapter in my career, but stepping down has allowed me to realign with my passion and reignite my love for engineering.
 
-As for takeaways for you the reader - I don't write this blog post to discourage anyone from pursuing leadership.  The main thing I want to pass on is that even for some who have aptitude for leadership, it may still not be the right fit for the person.
+As for takeaways for you the reader - I don't write this blog post to discourage anyone from pursuing leadership.  But even those with an aptitude for leadership might find it’s not the right fit.
 
 I hope my story inspires others to reflect on their own careers and to recognize when a change might bring greater fulfillment.
