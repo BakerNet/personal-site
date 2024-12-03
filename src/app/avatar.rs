@@ -16,7 +16,7 @@ pub fn Avatar() -> impl IntoView {
 pub fn InfoBlock() -> impl IntoView {
     view! {
         <pre
-            class="text-base xl:text-lg leading-tight xl:leading-tight"
+            class="text-base whitespace-pre-wrap xl:text-lg leading-tight xl:leading-tight"
             inner_html=INFO_BLOCK.join("\n")
         ></pre>
     }

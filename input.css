@@ -33,3 +33,31 @@ h4 {
 h4:before {
     content: '#### ';
 }
+
+strong:before {
+    content: "**";
+}
+
+strong:after {
+    content: "**";
+}
+
+em:before {
+    content: "_";
+}
+
+em:after {
+    content: "_";
+}
+
+code {
+    background-color: #465780;
+}
+
+code:before {
+    content: "`";
+}
+
+code:after {
+    content: "`";
+}

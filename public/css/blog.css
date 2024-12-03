@@ -56,22 +56,6 @@
     width: 2em;
 }
 
-#blog_content strong:before {
-    content: "**";
-}
-
-#blog_content strong:after {
-    content: "**";
-}
-
-#blog_content em:before {
-    content: "_";
-}
-
-#blog_content em:after {
-    content: "_";
-}
-
 #blog_content a:before {
     content: "[";
 }
