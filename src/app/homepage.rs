@@ -28,8 +28,7 @@ pub fn HomePage() -> impl IntoView {
                     "For the past 7 years, I've been working at Multi Media LLC.  We run one of the largest sites on the internet, with over 2 billion monthly sessions and petabtye scale data.  Our platform is a highly interactive live streaming web app.  I've worked all across the stack as an engineer - frontend, backend, microservices, and tooling.  In the director role, I led the team through consistent user and revenue growth, maintained business alignment, and implemented meaningful processs improvements.  I'm very proud of what I've accomplished so far at Multi Media LLC and can't wait to see what the future holds."
                 </p>
                 <p class="text-base mb-2">
-                    "Try typing "<code>"cd /cv"</code>
-                    " in the header to see my resume."
+                    "Try typing "<code>"cd /cv"</code> " in the header to see my resume."
                 </p>
             </div>
         </section>
@@ -43,8 +42,7 @@ pub fn HomePage() -> impl IntoView {
                     "I truly consider myself a lifelong learner.  There's nothing more enjoyable than learning something new or "
                     <strong>"even better"</strong>
                     " improving at something.  This means I have had a LOT of hobbies over the years. To list a few:  Legos, comic books, yoyo, rubik's cube, juggling, skateboarding, rock climbing, 3d printing, fixie cycling, video games (modern & retro), board games, card games, model kits (gunpla), cooking, coffee (espresso), electronics, keyboards, programming, minesweeper (try typing "
-                    <code>"mines"</code>
-                    " in the header), sudoku, etc, etc, etc."
+                    <code>"mines"</code> " in the header), sudoku, etc, etc, etc."
                 </p>
                 <p class="text-base mb-2">
                     "Some random facts about me:  In college I was sponsored for yoyoing and competed in the World Yoyo Contest.   In high school, I trained with the USA Olympic Bobsledding team but decided not to pursue the sport because I would have had to move across the country (Lake Placid, NY).  In undergrad university, I was Pre-Med and only decided to switch to switch to computer science after graduation while studying for the MCAT."
