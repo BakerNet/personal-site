@@ -36,24 +36,7 @@
 
 #blog_content a {
     color: #81a1c1;
-}
-
-#blog_content ul li:before {
-    content: "•";
-    text-align: right;
-    padding-right: 0.5em;
-    color: #81a1c1;
-    display: inline-block;
-    width: 1em;
-}
-
-#blog_content ul li li:before {
-    content: "◦";
-    text-align: right;
-    padding-right: 0.5em;
-    color: #81a1c1;
-    display: inline-block;
-    width: 2em;
+    white-space: nowrap;
 }
 
 #blog_content a:before {

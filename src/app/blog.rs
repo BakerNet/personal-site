@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
-use leptos::{either::Either, prelude::*};
+use leptos::{html::Input, prelude::*};
 use leptos_meta::Title;
-use leptos_router::{components::*, hooks::use_params_map};
+use leptos_router::{components::*, hooks::*};
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
 use server_fn::codec::GetUrl;
@@ -31,11 +31,15 @@ pub struct Assets;
 
 #[component]
 pub fn BlogWrapper() -> impl IntoView {
+    let clicked = ArcTrigger::new();
+    provide_context(clicked.clone());
     view! {
         <h1 class="font-bold text-2xl text-center mb-8">
-            <a href="/blog">"Hans Baker's Blog"</a>
+            <a href="/blog" on:click=move |_| clicked.notify()>
+                "Hans Baker's Blog"
+            </a>
         </h1>
-        <div class="w-[80rem] max-w-full mx-auto text-left">
+        <div class="w-full max-w-4xl mx-auto text-left">
             <Outlet />
         </div>
     }
@@ -60,90 +64,120 @@ pub struct PostMeta {
 }
 
 #[server(input = GetUrl)]
-pub async fn get_meta(search: String) -> Result<Vec<PostMeta>, ServerFnError> {
+pub async fn get_meta(pattern: String) -> Result<Vec<PostMeta>, ServerFnError> {
     let cache = &*GLOBAL_META_CACHE;
-    let re = RegexBuilder::new(&search)
+    let is_base = pattern == "";
+    if is_base {
+        if let Some(r) = cache.get(&pattern) {
+            return Ok(r.clone());
+        }
+    }
+    let re = RegexBuilder::new(&pattern)
         .case_insensitive(true)
         .multi_line(true)
         .build()
         .map_err(|e| ServerFnError::new(format!("Couldn't parse regex: {}", e)))?;
-    Ok(cache
-        .entry(search.clone())
-        .or_insert_with(move || {
-            let matter = Matter::<YAML>::new();
-            let posts = Assets::iter()
-                .map(|s| {
-                    let content = Assets::get(&s).expect("Should be able to get blog post");
-                    (
-                        s,
-                        String::from_utf8(content.data.into()).expect("Couldn't parse blog post"),
-                    )
-                })
-                .filter(|(_, content)| {
-                    if search == "" {
-                        true
-                    } else {
-                        re.is_match(content)
-                    }
-                })
-                .map(|(s, content)| {
-                    let fm = matter
-                        .parse_with_struct::<FrontMatter>(&content)
-                        .ok_or_else(|| {
-                            logging::error!("Unable to parse meta for {}", s);
-                            ServerFnError::new("Couldn't parse blog posts")
-                        })?;
-                    Ok(PostMeta {
-                        name: s[..s.len() - 3].to_string(),
-                        title: fm.data.title,
-                        author: fm.data.author,
-                        date: fm.data.date,
-                        tags: fm.data.tags,
-                    })
-                })
-                .collect::<Result<Vec<PostMeta>, ServerFnError>>();
-            posts
-                .map(|pv| {
-                    let mut pv = pv;
-                    pv.sort_by(|a, b| b.date.cmp(&a.date));
-                    pv
-                })
-                .unwrap_or_default()
+    let matter = Matter::<YAML>::new();
+    let posts = Assets::iter()
+        .map(|s| {
+            let content = Assets::get(&s).expect("Should be able to get blog post");
+            (
+                s,
+                String::from_utf8(content.data.into()).expect("Couldn't parse blog post"),
+            )
         })
-        .to_vec())
+        .filter(
+            |(_, content)| {
+                if is_base {
+                    true
+                } else {
+                    re.is_match(content)
+                }
+            },
+        )
+        .map(|(s, content)| {
+            let fm = matter
+                .parse_with_struct::<FrontMatter>(&content)
+                .ok_or_else(|| {
+                    logging::error!("Unable to parse meta for {}", s);
+                    ServerFnError::new("Couldn't parse blog posts")
+                })?;
+            Ok(PostMeta {
+                name: s[..s.len() - 3].to_string(),
+                title: fm.data.title,
+                author: fm.data.author,
+                date: fm.data.date,
+                tags: fm.data.tags,
+            })
+        })
+        .collect::<Result<Vec<PostMeta>, ServerFnError>>();
+    let posts = posts.map(|pv| {
+        let mut pv = pv;
+        pv.sort_by(|a, b| b.date.cmp(&a.date));
+        pv
+    });
+    if is_base {
+        cache.insert(pattern, posts.clone().unwrap_or_default());
+    }
+
+    posts
 }
 
 #[component]
 pub fn BlogHome() -> impl IntoView {
-    // todo - maybe use params for state?
     let (search, set_search) = signal(String::new());
-    let input_ref = NodeRef::new();
+    let input_ref = NodeRef::<Input>::new();
     let posts = Resource::new(search, move |search| async move {
         let cache = &*GLOBAL_META_CACHE;
         if let Some(s) = cache.get(&search) {
             return (*s).clone();
         }
         let meta = get_meta(search.clone()).await.unwrap_or(Vec::new());
+        // only cache all searches on the browser
+        #[cfg(feature = "hydrate")]
         cache.insert(search, meta.clone());
         meta
     });
 
+    let header_clicked = expect_context::<ArcTrigger>();
+    Effect::watch(
+        move || header_clicked.track(),
+        move |_, _, _| {
+            let el = if let Some(el) = input_ref.get_untracked() {
+                el
+            } else {
+                return;
+            };
+            set_search(String::new());
+            el.set_value("");
+        },
+        false,
+    );
+
     view! {
         <Title text="Blog Home" />
         <div>
-            <form on:submit=move |ev| {
-                ev.prevent_default();
-                let el = if let Some(el) = input_ref.get_untracked() {
-                    el
-                } else {
-                    return;
-                };
-                set_search(el.value());
-                el.set_value("");
-            }>
-                // TODO - style
-                <label for="blog_grep">"Search (regex): "</label>
-                <input id="blog_grep" node_ref=input_ref placeholder="match pattern" />
+            <form
+                class="mb-4 flex flex-row space-x-2"
+                on:submit=move |ev| {
+                    ev.prevent_default();
+                    let el = if let Some(el) = input_ref.get_untracked() {
+                        el
+                    } else {
+                        return;
+                    };
+                    set_search(el.value());
+                }
+            >
+                <label for="blog_grep" class="font-md">
+                    "Search (regex): "
+                </label>
+                <input
+                    id="blog_grep"
+                    class="flex-grow max-w-72 min-w-12 px-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-brightBlack bg-background text-foreground"
+                    node_ref=input_ref
+                    placeholder="match pattern"
+                />
             </form>
         </div>
         <div>
@@ -153,7 +187,7 @@ pub fn BlogHome() -> impl IntoView {
                     if s == "" {
                         "$ ls -lt blog".to_string()
                     } else {
-                        format!("$ ls blog | xargs grep -Eil '{}'", s)
+                        format!("$ grep -Eil '{}' blog/* | xargs ls -lt", s)
                     }
                 }}
             </div>
@@ -164,48 +198,29 @@ pub fn BlogHome() -> impl IntoView {
                     posts
                         .into_iter()
                         .map(|post| {
-                            let s = search.get_untracked();
-                            if s == "" {
-                                Either::Left(
-                                    view! {
-                                        <div class="mb-4">
-                                            <A attr:class="text-lg leading-tight" href=post.name>
-                                                <div>
-                                                    "drw-r--r-- hans "
-                                                    <span>{format!("{}", post.date.format("%b %e %Y"))}</span>
-                                                    " " <span class="text-blue">{post.title}</span>
-                                                </div>
-                                                <div>
-                                                    {post
-                                                        .tags
-                                                        .iter()
-                                                        .map(|s| {
-                                                            view! {
-                                                                <span class="rounded-md px-1 bg-brightBlack mr-2">
-                                                                    {s.to_string()}
-                                                                </span>
-                                                            }
-                                                        })
-                                                        .collect_view()}
-                                                </div>
-                                            </A>
+                            view! {
+                                <div class="mb-4">
+                                    <A attr:class="text-lg leading-tight" href=post.name>
+                                        <div>
+                                            "drw-r--r-- hans "
+                                            <span>{format!("{}", post.date.format("%b %e %Y"))}</span>
+                                            " " <span class="text-blue">{post.title}</span>
                                         </div>
-                                    },
-                                )
-                            } else {
-                                Either::Right(
-                                    view! {
-                                        <div class="mb-4">
-                                            "• "
-                                            <A
-                                                attr:class="text-lg leading-tight text-blue"
-                                                href=post.name
-                                            >
-                                                {post.title}
-                                            </A>
+                                        <div>
+                                            {post
+                                                .tags
+                                                .iter()
+                                                .map(|s| {
+                                                    view! {
+                                                        <span class="rounded-md px-1 bg-brightBlack mr-2">
+                                                            {s.to_string()}
+                                                        </span>
+                                                    }
+                                                })
+                                                .collect_view()}
                                         </div>
-                                    },
-                                )
+                                    </A>
+                                </div>
                             }
                         })
                         .collect_view()
