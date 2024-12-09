@@ -61,3 +61,22 @@ code:before {
 code:after {
     content: "`";
 }
+
+ul li:before {
+    content: "•";
+    text-align: right;
+    padding-right: 0.5em;
+    color: #81a1c1;
+    display: inline-block;
+    width: 1em;
+}
+
+ul li li:before {
+    content: "◦";
+    text-align: right;
+    padding-right: 0.5em;
+    color: #81a1c1;
+    display: inline-block;
+    width: 2em;
+}
+

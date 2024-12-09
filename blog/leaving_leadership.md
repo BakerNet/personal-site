@@ -1,5 +1,5 @@
 ---
-title: "Why I Stepped Down from Leadership:  Reflections on my return to engineering"
+title: Why I Stepped Down from Leadership
 author: Hans Baker
 date: "2024-11-30T12:00:00Z"
 tags:

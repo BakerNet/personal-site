@@ -26,6 +26,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
                 <link rel="stylesheet" id="leptos" href="/pkg/personal-site.css" />
                 <link rel="stylesheet" href="/css/devicon.min.css" />
+                <link rel="stylesheet" href="/css/extra-icons.css" />
                 <link rel="stylesheet" href="/css/blog.css" />
                 <MetaTags />
             </head>
@@ -94,6 +95,9 @@ fn Footer() -> impl IntoView {
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4 leading-tight">
                 <div class="grid grid-cols-1 lg:grid-cols-3">
                     <div class="order-first text-center lg:order-last lg:text-right">
+                        <a class="text-2xl text-brightBlue mx-1" href="https://bsky.app/profile/hansbaker.com">
+                            <i class="extra-icon-bluesky" />
+                        </a>
                         <a class="text-2xl text-white mx-1" href="https://github.com/BakerNet">
                             <i class="devicon-github-plain" />
                         </a>
