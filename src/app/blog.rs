@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
-use leptos::prelude::*;
+use leptos::{html::Input, prelude::*};
 use leptos_meta::Title;
-use leptos_router::{components::*, hooks::use_params_map};
+use leptos_router::{components::*, hooks::*};
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
 use server_fn::codec::GetUrl;
@@ -14,6 +14,8 @@ use gray_matter::{engine::YAML, Matter};
 use leptos::logging;
 #[cfg(feature = "ssr")]
 use pulldown_cmark::{Options, Parser};
+#[cfg(feature = "ssr")]
+use regex::RegexBuilder;
 
 #[cfg(feature = "ssr")]
 use crate::highlight::highlight;
@@ -29,11 +31,15 @@ pub struct Assets;
 
 #[component]
 pub fn BlogWrapper() -> impl IntoView {
+    let clicked = ArcTrigger::new();
+    provide_context(clicked.clone());
     view! {
         <h1 class="font-bold text-2xl text-center mb-8">
-            <a href="/blog">"Hans Baker's Blog"</a>
+            <a href="/blog" on:click=move |_| clicked.notify()>
+                "Hans Baker's Blog"
+            </a>
         </h1>
-        <div class="w-[80rem] max-w-full mx-auto text-left">
+        <div class="w-full max-w-4xl mx-auto text-left">
             <Outlet />
         </div>
     }
@@ -58,63 +64,135 @@ pub struct PostMeta {
 }
 
 #[server(input = GetUrl)]
-pub async fn get_meta() -> Result<Vec<PostMeta>, ServerFnError> {
+pub async fn get_meta(pattern: String) -> Result<Vec<PostMeta>, ServerFnError> {
     let cache = &*GLOBAL_META_CACHE;
-    Ok(cache
-        .entry("".to_string())
-        .or_insert_with(move || {
-            let matter = Matter::<YAML>::new();
-            let posts = Assets::iter()
-                .map(|s| {
-                    let content = Assets::get(&s).expect("Should be able to get blog post");
-                    let content =
-                        &String::from_utf8(content.data.into()).expect("Couldn't parse blog post");
-                    let fm = matter
-                        .parse_with_struct::<FrontMatter>(content)
-                        .ok_or_else(|| {
-                            logging::error!("Unable to parse meta for {}", s);
-                            ServerFnError::new("Couldn't parse blog posts")
-                        })?;
-                    Ok(PostMeta {
-                        name: s[..s.len() - 3].to_string(),
-                        title: fm.data.title,
-                        author: fm.data.author,
-                        date: fm.data.date,
-                        tags: fm.data.tags,
-                    })
-                })
-                .collect::<Result<Vec<PostMeta>, ServerFnError>>();
-            posts
-                .map(|pv| {
-                    let mut pv = pv;
-                    pv.sort_by(|a, b| b.date.cmp(&a.date));
-                    pv
-                })
-                .unwrap_or_default()
+    let is_base = pattern == "";
+    if is_base {
+        if let Some(r) = cache.get(&pattern) {
+            return Ok(r.clone());
+        }
+    }
+    let re = RegexBuilder::new(&pattern)
+        .case_insensitive(true)
+        .multi_line(true)
+        .build()
+        .map_err(|e| ServerFnError::new(format!("Couldn't parse regex: {}", e)))?;
+    let matter = Matter::<YAML>::new();
+    let posts = Assets::iter()
+        .map(|s| {
+            let content = Assets::get(&s).expect("Should be able to get blog post");
+            (
+                s,
+                String::from_utf8(content.data.into()).expect("Couldn't parse blog post"),
+            )
         })
-        .to_vec())
+        .filter(
+            |(_, content)| {
+                if is_base {
+                    true
+                } else {
+                    re.is_match(content)
+                }
+            },
+        )
+        .map(|(s, content)| {
+            let fm = matter
+                .parse_with_struct::<FrontMatter>(&content)
+                .ok_or_else(|| {
+                    logging::error!("Unable to parse meta for {}", s);
+                    ServerFnError::new("Couldn't parse blog posts")
+                })?;
+            Ok(PostMeta {
+                name: s[..s.len() - 3].to_string(),
+                title: fm.data.title,
+                author: fm.data.author,
+                date: fm.data.date,
+                tags: fm.data.tags,
+            })
+        })
+        .collect::<Result<Vec<PostMeta>, ServerFnError>>();
+    let posts = posts.map(|pv| {
+        let mut pv = pv;
+        pv.sort_by(|a, b| b.date.cmp(&a.date));
+        pv
+    });
+    if is_base {
+        cache.insert(pattern, posts.clone().unwrap_or_default());
+    }
+
+    posts
 }
 
 #[component]
 pub fn BlogHome() -> impl IntoView {
-    let posts = Resource::new(
-        || (),
-        move |_| async {
-            let cache = &*GLOBAL_META_CACHE;
-            if let Some(s) = cache.get(&"".to_string()) {
-                return (*s).clone();
-            }
-            let meta = get_meta().await.unwrap_or(Vec::new());
-            cache.insert("".to_string(), meta.clone());
-            meta
+    let (search, set_search) = signal(String::new());
+    let input_ref = NodeRef::<Input>::new();
+    let posts = Resource::new(search, move |search| async move {
+        let cache = &*GLOBAL_META_CACHE;
+        if let Some(s) = cache.get(&search) {
+            return (*s).clone();
+        }
+        let meta = get_meta(search.clone()).await.unwrap_or(Vec::new());
+        // only cache all searches on the browser
+        #[cfg(feature = "hydrate")]
+        cache.insert(search, meta.clone());
+        meta
+    });
+
+    let header_clicked = expect_context::<ArcTrigger>();
+    Effect::watch(
+        move || header_clicked.track(),
+        move |_, _, _| {
+            let el = if let Some(el) = input_ref.get_untracked() {
+                el
+            } else {
+                return;
+            };
+            set_search(String::new());
+            el.set_value("");
         },
+        false,
     );
+
     view! {
         <Title text="Blog Home" />
         <div>
-            <div class="bg-black p-2 rounded-md">"$ ls -lt blog"</div>
+            <form
+                class="mb-4 flex flex-row space-x-2"
+                on:submit=move |ev| {
+                    ev.prevent_default();
+                    let el = if let Some(el) = input_ref.get_untracked() {
+                        el
+                    } else {
+                        return;
+                    };
+                    set_search(el.value());
+                }
+            >
+                <label for="blog_grep" class="font-md">
+                    "Search (regex): "
+                </label>
+                <input
+                    id="blog_grep"
+                    class="flex-grow max-w-72 min-w-12 px-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-brightBlack bg-background text-foreground"
+                    node_ref=input_ref
+                    placeholder="match pattern"
+                />
+            </form>
+        </div>
+        <div>
+            <div class="bg-black p-2 rounded-md">
+                {move || {
+                    let s = search.get();
+                    if s == "" {
+                        "$ ls -lt blog".to_string()
+                    } else {
+                        format!("$ grep -Eil '{}' blog/* | xargs ls -lt", s)
+                    }
+                }}
+            </div>
             <br />
-            <Suspense>
+            <Transition>
                 {move || Suspend::new(async move {
                     let posts = posts.await;
                     posts
@@ -135,7 +213,7 @@ pub fn BlogHome() -> impl IntoView {
                                                 .map(|s| {
                                                     view! {
                                                         <span class="rounded-md px-1 bg-brightBlack mr-2">
-                                                            "#"{s.to_string()}
+                                                            {s.to_string()}
                                                         </span>
                                                     }
                                                 })
@@ -147,7 +225,7 @@ pub fn BlogHome() -> impl IntoView {
                         })
                         .collect_view()
                 })}
-            </Suspense>
+            </Transition>
         </div>
     }
 }
@@ -211,8 +289,8 @@ pub fn BlogPage() -> impl IntoView {
         if let Some(s) = cache.get(&name) {
             return (*s).clone();
         }
-        let post_data = get_post(name).await;
-        cache.insert("".to_string(), post_data.clone());
+        let post_data = get_post(name.clone()).await;
+        cache.insert(name, post_data.clone());
         post_data
     });
     view! {
@@ -233,8 +311,7 @@ pub fn BlogPage() -> impl IntoView {
                                     p
                                         .meta
                                         .tags
-                                        .iter()
-                                        .map(|s| format!("#{}", s))
+                                        .into_iter()
                                         .fold(
                                             String::new(),
                                             |acc, s| {
