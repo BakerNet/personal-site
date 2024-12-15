@@ -289,8 +289,8 @@ pub fn BlogPage() -> impl IntoView {
         if let Some(s) = cache.get(&name) {
             return (*s).clone();
         }
-        let post_data = get_post(name).await;
-        cache.insert("".to_string(), post_data.clone());
+        let post_data = get_post(name.clone()).await;
+        cache.insert(name, post_data.clone());
         post_data
     });
     view! {
