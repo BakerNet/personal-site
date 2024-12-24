@@ -18,7 +18,7 @@ leptos-use = { version = "0.14.0", features = ["storage"] }
 tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 tower = { version = "0.4", optional = true }
 tower-http = { version = "0.5", features = ["fs"], optional = true }
-wasm-bindgen = "=0.2.96"
+wasm-bindgen = "=0.2.99"
 serde = "1"
 serde_json = "1"
 thiserror = "1"
