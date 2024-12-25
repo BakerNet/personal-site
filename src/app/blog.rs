@@ -98,7 +98,7 @@ pub fn BlogHome() -> impl IntoView {
             <div class="bg-black p-2 rounded-md">
                 {move || {
                     let s = search.get();
-                    if s == "" {
+                    if s.is_empty() {
                         "$ ls -lt blog".to_string()
                     } else {
                         format!("$ grep -Eil '{}' blog/* | xargs ls -lt", s)

@@ -3,6 +3,8 @@ pub mod app;
 pub mod blog;
 #[cfg(any(feature = "ssr", feature = "rss"))]
 mod highlight;
+#[cfg(feature = "rss")]
+pub mod rss;
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]

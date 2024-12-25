@@ -55,7 +55,7 @@ pub enum BlogError {
 #[cfg(any(feature = "ssr", feature = "rss"))]
 pub async fn get_meta(pattern: String) -> Option<Vec<PostMeta>> {
     let cache = &*GLOBAL_META_CACHE;
-    let is_base = pattern == "";
+    let is_base = pattern.is_empty();
     if is_base {
         if let Some(r) = cache.get(&pattern) {
             return Some(r.clone());
