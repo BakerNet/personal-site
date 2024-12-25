@@ -1,5 +1,6 @@
 ---
 title: Writing Rust for Web is a Pleasure
+description: Leptos makes writing fullstack web applications a pleasure - learn about how Leptos provides a developer experience on par with the TypeScript ecosystem when writing Rust for the web.
 author: Hans Baker
 date: 2024-12-24T12:00:00Z
 tags:

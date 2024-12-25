@@ -1,5 +1,7 @@
+#[cfg(any(feature = "ssr", feature = "hydrate"))]
 pub mod app;
-#[cfg(feature = "ssr")]
+pub mod blog;
+#[cfg(any(feature = "ssr", feature = "rss"))]
 mod highlight;
 
 #[cfg(feature = "hydrate")]

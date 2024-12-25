@@ -1,33 +1,11 @@
-use chrono::{DateTime, Utc};
-use dashmap::DashMap;
 use leptos::{html::Input, prelude::*};
 use leptos_meta::Title;
 use leptos_router::{components::*, hooks::*};
-use rust_embed::Embed;
-use serde::{Deserialize, Serialize};
 use server_fn::codec::GetUrl;
-use std::sync::LazyLock;
 
 #[cfg(feature = "ssr")]
-use gray_matter::{engine::YAML, Matter};
-#[cfg(feature = "ssr")]
-use leptos::logging;
-#[cfg(feature = "ssr")]
-use pulldown_cmark::{Options, Parser};
-#[cfg(feature = "ssr")]
-use regex::RegexBuilder;
-
-#[cfg(feature = "ssr")]
-use crate::highlight::highlight;
-
-static GLOBAL_POST_CACHE: LazyLock<DashMap<String, Result<Post, ServerFnError>>> =
-    LazyLock::new(DashMap::new);
-static GLOBAL_META_CACHE: LazyLock<DashMap<String, Vec<PostMeta>>> = LazyLock::new(DashMap::new);
-
-#[derive(Embed)]
-#[folder = "blog"]
-#[cfg_attr(feature = "hydrate", metadata_only = true)]
-pub struct Assets;
+use crate::blog::{get_meta, get_post};
+use crate::blog::{Post, PostMeta, GLOBAL_META_CACHE, GLOBAL_POST_CACHE};
 
 #[component]
 pub fn BlogWrapper() -> impl IntoView {
@@ -38,6 +16,9 @@ pub fn BlogWrapper() -> impl IntoView {
             <a href="/blog" on:click=move |_| clicked.notify()>
                 "Hans Baker's Blog"
             </a>
+            <a href="https://hansbaker.com/rss.xml" target="_blank" class="relative top-1 ml-4 text-white">
+                <i class="extra-rss" />
+            </a>
         </h1>
         <div class="w-full max-w-4xl mx-auto text-left">
             <Outlet />
@@ -45,82 +26,11 @@ pub fn BlogWrapper() -> impl IntoView {
     }
 }
 
-#[cfg(feature = "ssr")]
-#[derive(Deserialize, Debug, Default)]
-struct FrontMatter {
-    title: String,
-    author: String,
-    date: DateTime<Utc>,
-    tags: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostMeta {
-    name: String,
-    title: String,
-    author: String,
-    date: DateTime<Utc>,
-    tags: Vec<String>,
-}
-
 #[server(input = GetUrl)]
-pub async fn get_meta(pattern: String) -> Result<Vec<PostMeta>, ServerFnError> {
-    let cache = &*GLOBAL_META_CACHE;
-    let is_base = pattern == "";
-    if is_base {
-        if let Some(r) = cache.get(&pattern) {
-            return Ok(r.clone());
-        }
-    }
-    let re = RegexBuilder::new(&pattern)
-        .case_insensitive(true)
-        .multi_line(true)
-        .build()
-        .map_err(|e| ServerFnError::new(format!("Couldn't parse regex: {}", e)))?;
-    let matter = Matter::<YAML>::new();
-    let posts = Assets::iter()
-        .map(|s| {
-            let content = Assets::get(&s).expect("Should be able to get blog post");
-            (
-                s,
-                String::from_utf8(content.data.into()).expect("Couldn't parse blog post"),
-            )
-        })
-        .filter(
-            |(_, content)| {
-                if is_base {
-                    true
-                } else {
-                    re.is_match(content)
-                }
-            },
-        )
-        .map(|(s, content)| {
-            let fm = matter
-                .parse_with_struct::<FrontMatter>(&content)
-                .ok_or_else(|| {
-                    logging::error!("Unable to parse meta for {}", s);
-                    ServerFnError::new("Couldn't parse blog posts")
-                })?;
-            Ok(PostMeta {
-                name: s[..s.len() - 3].to_string(),
-                title: fm.data.title,
-                author: fm.data.author,
-                date: fm.data.date,
-                tags: fm.data.tags,
-            })
-        })
-        .collect::<Result<Vec<PostMeta>, ServerFnError>>();
-    let posts = posts.map(|pv| {
-        let mut pv = pv;
-        pv.sort_by(|a, b| b.date.cmp(&a.date));
-        pv
-    });
-    if is_base {
-        cache.insert(pattern, posts.clone().unwrap_or_default());
-    }
-
-    posts
+pub async fn get_meta_server(pattern: String) -> Result<Vec<PostMeta>, ServerFnError> {
+    get_meta(pattern)
+        .await
+        .ok_or(ServerFnError::new("Couldn't parse blog posts"))
 }
 
 #[component]
@@ -132,7 +42,7 @@ pub fn BlogHome() -> impl IntoView {
         if let Some(s) = cache.get(&search) {
             return (*s).clone();
         }
-        let meta = get_meta(search.clone()).await.unwrap_or(Vec::new());
+        let meta = get_meta_server(search.clone()).await.unwrap_or(Vec::new());
         // only cache all searches on the browser
         #[cfg(feature = "hydrate")]
         cache.insert(search, meta.clone());
@@ -230,52 +140,12 @@ pub fn BlogHome() -> impl IntoView {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Post {
-    meta: PostMeta,
-    content: String,
-}
-
 #[server(input = GetUrl)]
-pub async fn get_post(name: String) -> Result<Post, ServerFnError> {
+pub async fn get_post_server(name: String) -> Result<Post, ServerFnError> {
     let name = format!("{}.md", name);
-    let content = Assets::get(&name).ok_or(ServerFnError::new("Blog post not found"))?;
-
-    let cache = &*GLOBAL_POST_CACHE;
-    cache
-        .entry(name.clone())
-        .or_insert_with(move || {
-            let matter = Matter::<YAML>::new();
-            let content =
-                &String::from_utf8(content.data.into()).expect("Couldn't parse blog post");
-
-            let fm = matter
-                .parse_with_struct::<FrontMatter>(content)
-                .ok_or_else(|| {
-                    logging::error!("Unable to parse meta for {}", name);
-                    ServerFnError::new("Couldn't parse blog posts")
-                })?;
-            let meta = PostMeta {
-                name: name[..name.len() - 3].to_string(),
-                title: fm.data.title,
-                author: fm.data.author,
-                date: fm.data.date,
-                tags: fm.data.tags,
-            };
-
-            let parser = Parser::new_ext(content, Options::all());
-            let parser = highlight(parser);
-
-            // Write to a new String buffer.
-            let mut html_output = String::new();
-            pulldown_cmark::html::push_html(&mut html_output, parser);
-
-            Ok(Post {
-                meta,
-                content: html_output,
-            })
-        })
-        .clone()
+    get_post(name)
+        .await
+        .ok_or(ServerFnError::new("Couldn't get blog post"))
 }
 
 #[component]
@@ -287,10 +157,12 @@ pub fn BlogPage() -> impl IntoView {
         let name = name;
         let cache = &*GLOBAL_POST_CACHE;
         if let Some(s) = cache.get(&name) {
-            return (*s).clone();
+            return (*s)
+                .clone()
+                .ok_or(ServerFnError::new("Couldn't get blog post"));
         }
-        let post_data = get_post(name.clone()).await;
-        cache.insert(name, post_data.clone());
+        let post_data = get_post_server(name.clone()).await;
+        cache.insert(name, post_data.clone().ok());
         post_data
     });
     view! {

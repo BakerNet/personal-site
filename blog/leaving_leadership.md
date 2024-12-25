@@ -1,5 +1,6 @@
 ---
 title: Why I Stepped Down from Leadership
+description: Reflections on my return to engineering.  Discussing why I stepped down from a director-level leadership position to return to a more technical role.
 author: Hans Baker
 date: "2024-11-30T12:00:00Z"
 tags:

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Hans Baker&apos;s Blog</title>
+    <link>https://hansbaker.com/blog</link>
+    <description>Insights and ramblings of a Software Engineering professional who has worn every hat, but mainly wants to code.</description>
+    <language>en-us</language>
+    <ttl>60</ttl>
+    <atom:link href="https://hansbaker.com/rss.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Writing Rust for Web is a Pleasure</title>
+      <link>https://hansbaker.com/blog/rust_for_web</link>
+      <description><![CDATA[Leptos makes writing fullstack web applications a pleasure - learn about how Leptos provides a developer experience on par with the TypeScript ecosystem when writing Rust for the web.]]></description>
+      <author>Hans Baker</author>
+      <guid>https://hansbaker.com/blog/rust_for_web</guid>
+      <pubDate>Tue, 24 Dec 2024 12:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Why I Stepped Down from Leadership</title>
+      <link>https://hansbaker.com/blog/leaving_leadership</link>
+      <description><![CDATA[Reflections on my return to engineering.  Discussing why I stepped down from a director-level leadership position to return to a more technical role.]]></description>
+      <author>Hans Baker</author>
+      <guid>https://hansbaker.com/blog/leaving_leadership</guid>
+      <pubDate>Sat, 30 Nov 2024 12:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Hello World</title>
+      <link>https://hansbaker.com/blog/hello_world</link>
+      <description><![CDATA[Hello World!  This is my blog.]]></description>
+      <author>Hans Baker</author>
+      <guid>https://hansbaker.com/blog/hello_world</guid>
+      <pubDate>Fri, 15 Nov 2024 12:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

@@ -12,7 +12,7 @@ use codee::string::JsonSerdeWasmCodec;
 #[cfg(feature = "hydrate")]
 use leptos_use::storage::use_local_storage;
 
-use super::blog::Assets;
+use crate::blog::Assets;
 
 use super::terminal::{ColumnarView, CommandRes, Terminal};
 

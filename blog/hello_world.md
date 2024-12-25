@@ -1,5 +1,6 @@
 ---
 title: Hello World
+description: Hello World!  This is my blog.
 author: Hans Baker
 date: "2024-11-15T12:00:00Z"
 tags:

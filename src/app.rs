@@ -96,7 +96,7 @@ fn Footer() -> impl IntoView {
                 <div class="grid grid-cols-1 lg:grid-cols-3">
                     <div class="order-first text-center lg:order-last lg:text-right">
                         <a class="text-2xl text-brightBlue mx-1" href="https://bsky.app/profile/hansbaker.com">
-                            <i class="extra-icon-bluesky" />
+                            <i class="extra-bluesky" />
                         </a>
                         <a class="text-2xl text-white mx-1" href="https://github.com/BakerNet">
                             <i class="devicon-github-plain" />
