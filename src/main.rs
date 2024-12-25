@@ -47,12 +47,13 @@ async fn main() {
         .map(|p| {
             let link = format!("https://hansbaker.com/blog/{}", p.name);
             let guid = GuidBuilder::default().value(&link).permalink(true).build();
+            let author = format!("{} <contact@hansbaker.com>", p.author);
             ItemBuilder::default()
                 .title(p.title)
                 .description(p.description)
                 .author(p.author)
                 .pub_date(p.date.to_rfc2822())
-                .link(link)
+                .link(author)
                 .guid(guid)
                 .build()
         })
