@@ -251,6 +251,7 @@ pub fn Header() -> impl IntoView {
                     let val = el.value();
                     el.set_value(&val[..cursor]);
                     set_hist_state(None);
+                    return;
                 }
                 let new_val = &(*opts)[index];
                 el.set_value(new_val);
