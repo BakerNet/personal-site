@@ -53,7 +53,10 @@ pub fn HomePage() -> impl IntoView {
                         <strong>"even better"</strong> " improving at something."
                     </p>
                     <p class="text-base mb-2">
-                        "This means I have had a "<em>"LOT"</em>" of hobbies over the years."</p><p class="text-base mb-2">"To list a few:  Legos, comic books, yoyo, rubik's cube, juggling, skateboarding, rock climbing, 3d printing, fixie cycling, video games (modern & retro), board games, card games, model kits (gunpla), cooking, coffee (espresso), electronics, keyboards, programming, minesweeper (try typing "
+                        "This means I have had a "<em>"LOT"</em>" of hobbies over the years."
+                    </p>
+                    <p class="text-base mb-2">
+                        "To list a few:  Legos, comic books, yoyo, rubik's cube, juggling, skateboarding, rock climbing, 3d printing, fixie cycling, video games (modern & retro), board games, card games, model kits (gunpla), cooking, coffee (espresso), electronics, keyboards, programming, minesweeper (try typing "
                         <code>"mines"</code> " in the header), sudoku, etc, etc, etc."
                     </p>
                     <p class="text-base mb-2">

@@ -17,7 +17,7 @@ There really isn't a hole in the TypeScript ecosystem these days, so what reason
 
 For me the answer is simple:  I like the act of writing Rust more than the act of writing TypeScript, and I think it's pretty neat that it's even possible to use Rust for Web frontend.
 
-I was surprised to find out, the developer experience of writing fullstack applications in Rust is actually fantastic thanks to the [Leptos project](https://github.com/leptos-rs/leptos).
+I was surprised to find out the developer experience of writing fullstack applications in Rust is actually fantastic thanks to the [Leptos project](https://github.com/leptos-rs/leptos).
 
 ## What is Leptos
 
@@ -173,7 +173,7 @@ pub async fn get_active_games() -> Result<Vec<SimpleGameInfo>, ServerFnError> {
 
 This server action can then be fetched within a component inside a `Resource` or invoked by a form using `ActionForm`.
 
-Under the hood, the `#[server]` macro expands to a server-side function & web handler and a client-side function (which makes an HTTP request).  Under the hood, this is utilizing the conditional compilation as discussed above.  To me, this system is much more intuitive than `"use server"` and `"use client"` in the JavaScript/TypeScript world.
+Under the hood, the `#[server]` macro expands to a server-side function (and request handler) and a client-side function (which makes an HTTP request).  Under the hood, this is utilizing conditional compilation as discussed above.  To me, this system is much more intuitive than `"use server"` and `"use client"` in the JavaScript/TypeScript world.
 
 ## The Elephant in the Room
 

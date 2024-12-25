@@ -16,7 +16,11 @@ pub fn BlogWrapper() -> impl IntoView {
             <a href="/blog" on:click=move |_| clicked.notify()>
                 "Hans Baker's Blog"
             </a>
-            <a href="https://hansbaker.com/rss.xml" target="_blank" class="relative top-1 ml-4 text-white">
+            <a
+                href="https://hansbaker.com/rss.xml"
+                target="_blank"
+                class="relative top-1 ml-4 text-white"
+            >
                 <i class="extra-rss" />
             </a>
         </h1>

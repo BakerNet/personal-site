@@ -95,7 +95,10 @@ fn Footer() -> impl IntoView {
             <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4 leading-tight">
                 <div class="grid grid-cols-1 lg:grid-cols-3">
                     <div class="order-first text-center lg:order-last lg:text-right">
-                        <a class="text-2xl text-brightBlue mx-1" href="https://bsky.app/profile/hansbaker.com">
+                        <a
+                            class="text-2xl text-brightBlue mx-1"
+                            href="https://bsky.app/profile/hansbaker.com"
+                        >
                             <i class="extra-bluesky" />
                         </a>
                         <a class="text-2xl text-white mx-1" href="https://github.com/BakerNet">
