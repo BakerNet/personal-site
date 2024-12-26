@@ -11,7 +11,7 @@ pub fn build_channel(posts: Vec<PostMeta>) -> Channel {
         .map(|p| {
             let link = format!("https://hansbaker.com/blog/{}", p.name);
             let guid = GuidBuilder::default().value(&link).permalink(true).build();
-            let author = format!("{} <contact@hansbaker.com>", p.author);
+            let author = format!("contact@hansbaker.com ({})", p.author);
             ItemBuilder::default()
                 .title(p.title)
                 .description(p.description)
@@ -30,7 +30,7 @@ pub fn build_channel(posts: Vec<PostMeta>) -> Channel {
 
     ChannelBuilder::default()
         .title("Hans Baker's Blog")
-        .description("Insights and ramblings of a Software Engineering professional who has worn every hat, but mainly wants to code.")
+        .description("Insights and ramblings of a Software Engineering professional who has worn many hats, but mainly wants to code.")
         .link("https://hansbaker.com/blog")
         .language("en-us".to_string())
         .ttl("60".to_string())
