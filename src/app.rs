@@ -35,7 +35,6 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
             <body class="flex flex-col font-mono min-h-screen bg-background text-foreground">
                 <App />
             </body>
-            <script type="module" src="/js/html2pdf.bundle.min.js"></script>
         </html>
     }
 }
