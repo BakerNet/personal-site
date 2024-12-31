@@ -6,12 +6,11 @@ pub fn CVPage() -> impl IntoView {
     view! {
         <Title text="CV / Resume" />
         <div class="grid mx-auto">
-            <h1 class="font-bold text-2xl text-center mb-8">"CV / Resume"<button
-            onclick=r#"let resume = document.getElementById('resume');
-import('/js/html2pdf.bundle.min.js').then(() => {
-    html2pdf().set({margin: 4, pagebreak: {mode: 'avoid-all'}, filename: 'hansbaker.pdf'}).from(resume).save();
-});"#
-            class="relative top-1 ml-4 text-white"><i class="extra-download" /></button></h1>
+            <h1 class="font-bold text-2xl text-center mb-8">
+                "CV / Resume"<a href="/HansBakerResume.pdf" download="HansBakerResume.pdf" class="relative top-1 ml-4 text-white" onclick>
+                    <i class="extra-download" />
+                </a>
+            </h1>
             <Resume />
         </div>
     }
@@ -20,7 +19,10 @@ import('/js/html2pdf.bundle.min.js').then(() => {
 #[component]
 fn Resume() -> impl IntoView {
     view! {
-        <div id="resume" class="grid max-w-4xl min-h-[inherit] grid-cols-1 md:grid-cols-3 p-8 bg-[#FFFFFF] text-background leading-snug">
+        <div
+            id="resume"
+            class="grid max-w-4xl min-h-[inherit] grid-cols-1 md:grid-cols-3 p-8 bg-[#FFFFFF] text-background leading-snug"
+        >
             <Sidebar />
             <Experience />
         </div>
@@ -30,9 +32,7 @@ fn Resume() -> impl IntoView {
 #[component]
 fn Sidebar() -> impl IntoView {
     view! {
-        <div
-            class="space-y-4 p-2"
-        >
+        <div class="space-y-4 p-2">
             <div class="flex flex-col space-y-4 text-center">
                 <div class="space-y-4">
                     <div>
@@ -40,51 +40,57 @@ fn Sidebar() -> impl IntoView {
                     </div>
                     <div class="flex flex-col items-center rounded border border-primary px-3 py-4 text-sm">
                         <div class="flex flex-col items-start gap-y-1.5 text-left">
-                        <div class="flex items-center gap-x-1.5">
-                            <i class="extra-location"></i>
-                            <div>"San Diego, CA"</div>
+                            <div class="flex items-center gap-x-1.5">
+                                <i class="extra-location"></i>
+                                <div>"San Diego, CA"</div>
+                            </div>
+                            <div class="flex items-center gap-x-1.5">
+                                <i class="extra-email"></i>
+                                <a
+                                    href="mailto:hansbaker90@gmail.com"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    "hansbaker90@gmail.com"
+                                </a>
+                            </div>
+                            <div class="flex items-center gap-x-1.5">
+                                <i class="extra-link"></i>
+                                <a
+                                    href="https://hansbaker.com"
+                                    target="_blank"
+                                    rel="noreferrer noopener nofollow"
+                                    class="inline-block"
+                                >
+                                    "https://hansbaker.com"
+                                </a>
+                            </div>
+                            <div class="flex items-center gap-x-1.5">
+                                <i class="devicon-github-plain" />
+                                <a
+                                    href="https://github.com/BakerNet"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    "/BakerNet"
+                                </a>
+                            </div>
+                            <div class="flex items-center gap-x-1.5">
+                                <i class="devicon-linkedin-plain" />
+                                <a
+                                    href="https://linkedin.com/in/hansbaker"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    "/in/hansbaker"
+                                </a>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-x-1.5">
-                            <i class="extra-email"></i>
-                            <a href="mailto:hansbaker90@gmail.com" target="_blank" rel="noreferrer">
-                                "hansbaker90@gmail.com"
-                            </a>
-                        </div>
-                        <div class="flex items-center gap-x-1.5">
-                            <i class="extra-link"></i>
-                            <a
-                                href="https://hansbaker.com"
-                                target="_blank"
-                                rel="noreferrer noopener nofollow"
-                                class="inline-block"
-                            >
-                                "https://hansbaker.com"
-                            </a>
-                        </div>
-                        <div class="flex items-center gap-x-1.5">
-                            <i class="devicon-github-plain" />
-                            <a href="https://github.com/BakerNet" target="_blank" rel="noreferrer">
-                                "/BakerNet"
-                            </a>
-                        </div>
-                        <div class="flex items-center gap-x-1.5">
-                            <i class="devicon-linkedin-plain" />
-                            <a
-                                href="https://linkedin.com/in/hansbaker"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                "/in/hansbaker"
-                            </a>
-                        </div>
-            </div>
                     </div>
                 </div>
             </div>
             <section id="skills" class="grid">
-                <h3 class="mb-2 border-b pb-0.5 font-bold">
-                    "Skills"
-                </h3>
+                <h3 class="mb-2 border-b pb-0.5 font-bold">"Skills"</h3>
                 <div class="grid gap-x-6 gap-y-3" style="grid-template-columns: repeat(1, 1fr)">
                     <div class="space-y-2">
                         <div>
@@ -121,9 +127,7 @@ fn Sidebar() -> impl IntoView {
                 </div>
             </section>
             <section id="interests" class="grid">
-                <h3 class="mb-2 border-b pb-0.5 font-bold">
-                    "Hobbies & Interests"
-                </h3>
+                <h3 class="mb-2 border-b pb-0.5 font-bold">"Hobbies & Interests"</h3>
                 <div class="grid gap-x-6 gap-y-3" style="grid-template-columns: repeat(1, 1fr)">
                     <div class="space-y-0.5">
                         <p class="text-sm">
@@ -133,9 +137,7 @@ fn Sidebar() -> impl IntoView {
                 </div>
             </section>
             <section id="education" class="grid">
-                <h3 class="mb-2 border-b pb-0.5 font-bold">
-                    "Education"
-                </h3>
+                <h3 class="mb-2 border-b pb-0.5 font-bold">"Education"</h3>
                 <div class="grid gap-x-6 gap-y-3" style="grid-template-columns: repeat(1, 1fr)">
                     <div class="space-y-2">
                         <div>
@@ -159,7 +161,7 @@ fn Sidebar() -> impl IntoView {
                                     <div class="font-bold">"2014-2017"</div>
                                 </div>
                             </div>
-                        <p>"Completed all pre-requisites for M.Sc. program"</p>
+                            <p>"Completed all pre-requisites for M.Sc. program"</p>
                         </div>
                     </div>
                 </div>
@@ -183,9 +185,7 @@ fn Experience() -> impl IntoView {
                 </p>
             </section>
             <section id="experience" class="grid">
-                <h3 class="mb-2 border-b pb-0.5 font-bold">
-                    "Experience"
-                </h3>
+                <h3 class="mb-2 border-b pb-0.5 font-bold">"Experience"</h3>
                 <div class="grid gap-x-6 gap-y-3" style="grid-template-columns: repeat(1, 1fr)">
                     <div class="space-y-2">
                         <div>
@@ -284,9 +284,7 @@ fn Experience() -> impl IntoView {
                 </div>
             </section>
             <section id="projects" class="grid">
-                <h3 class="mb-2 border-b pb-0.5 font-bold">
-                    "Personal Projects"
-                </h3>
+                <h3 class="mb-2 border-b pb-0.5 font-bold">"Personal Projects"</h3>
                 <div class="grid gap-x-6 gap-y-3" style="grid-template-columns: repeat(1, 1fr)">
                     <div class="space-y-2">
                         <div>
