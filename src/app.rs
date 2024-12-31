@@ -3,6 +3,7 @@ mod avatar;
 pub mod blog;
 mod header;
 mod homepage;
+mod resume;
 mod terminal;
 
 use leptos::prelude::*;
@@ -12,6 +13,7 @@ use leptos_router::{components::*, path};
 use blog::{BlogHome, BlogPage, BlogWrapper};
 use header::Header;
 use homepage::HomePage;
+use resume::CVPage;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -33,6 +35,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
             <body class="flex flex-col font-mono min-h-screen bg-background text-foreground">
                 <App />
             </body>
+            <script type="module" src="/js/html2pdf.bundle.min.js"></script>
         </html>
     }
 }
@@ -61,30 +64,6 @@ pub fn App() -> impl IntoView {
             </main>
             <Footer />
         </Router>
-    }
-}
-
-#[component]
-fn CVPage() -> impl IntoView {
-    view! {
-        <Title text="CV / Resume" />
-        <div class="grid mx-auto">
-            <h1 class="font-bold text-2xl text-center mb-8">"CV / Resume"</h1>
-            <div class="text-center">
-                <div class="bg-brightBlack text-yellow font-bold px-4 py-2 mb-4 inline-block rounded-lg border-4 border-yellow">
-                    <span class="animate-blink">"🚧"</span>
-                    " Under Construction "
-                    <span class="animate-blink">"🚧"</span>
-                </div>
-            </div>
-            <div class="text-center">
-                "In the meantime, check out my "
-                <a class="text-blue" href="https://linkedin.com/in/hansbaker">
-                    "Linked"
-                    <i class="devicon-linkedin-plain" />
-                </a>
-            </div>
-        </div>
     }
 }
 

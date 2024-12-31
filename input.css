@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 h1 {
-    color: #b48ead;
+    @apply text-purple font-bold;
 }
 
 h1:before {
@@ -11,7 +11,7 @@ h1:before {
 }
 
 h2 {
-    color: #a3be8c;
+    @apply text-green font-bold;
 }
 
 h2:before {
@@ -19,7 +19,7 @@ h2:before {
 }
 
 h3 {
-    color: #88c0d0;
+    @apply text-blue font-bold;
 }
 
 h3:before {
@@ -27,7 +27,11 @@ h3:before {
 }
 
 h4 {
-    color: #ebcb8b;
+    @apply text-yellow font-bold;
+}
+
+#resume h4 {
+    @apply text-orange font-bold;
 }
 
 h4:before {
@@ -51,7 +55,7 @@ em:after {
 }
 
 code {
-    background-color: #465780;
+    @apply bg-brightBlack;
 }
 
 code:before {
@@ -63,20 +67,23 @@ code:after {
 }
 
 ul li:before {
+    @apply text-blue;
     content: "•";
     text-align: right;
     padding-right: 0.5em;
-    color: #81a1c1;
     display: inline-block;
     width: 1em;
 }
 
 ul li li:before {
+    @apply text-blue;
     content: "◦";
     text-align: right;
     padding-right: 0.5em;
-    color: #81a1c1;
     display: inline-block;
     width: 2em;
 }
 
+.extra-bluesky:before {
+    transform: translateY(1px);
+}
