@@ -7,7 +7,12 @@ pub fn CVPage() -> impl IntoView {
         <Title text="CV / Resume" />
         <div class="grid mx-auto">
             <h1 class="font-bold text-2xl text-center mb-8">
-                "CV / Resume"<a href="/HansBakerResume.pdf" download="HansBakerResume.pdf" class="relative top-1 ml-4 text-white" onclick>
+                "CV / Resume"
+                <a
+                    href="/HansBakerResume.pdf"
+                    download="HansBakerResume.pdf"
+                    class="relative top-1 ml-4 text-white"
+                >
                     <i class="extra-download" />
                 </a>
             </h1>
@@ -309,7 +314,7 @@ fn Experience() -> impl IntoView {
                                 </a>
                             </div>
                         </div>
-                        <div class="wysiwyg">
+                        <div>
                             <p>
                                 "Minesweeper client with backend game engine, multiplayer support, login via OAuth2, replays w/ analysis, and personal statistics. Inspired by "
                                 <a
