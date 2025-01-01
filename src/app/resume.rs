@@ -181,7 +181,7 @@ fn Experience() -> impl IntoView {
                         "Innovative Software Engineer with 7+ years of experience building
                         and optimizing scalable web applications."
                     </strong>
-                    " Proven track record of delivering performant user experiences through deep expertise in JavaScript internals, browser performance optimization, and reactive frontend development. Adept at bridging front-end design and backend integrations, with full-stack experience building, integrating, and optimizing backend services for one of the world's highest traffic websites."
+                    " Proven track record of delivering performant software across the stack.  Building better user experiences through deep expertise in JavaScript internals, browser performance optimization, and reactive frontend development. Adept at building, integrating, and optimizing backend services with experience improving site reliability for one of the world's highest traffic websites."
                 </p>
             </section>
             <section id="experience" class="grid">
@@ -321,14 +321,7 @@ fn Experience() -> impl IntoView {
                                 </a> ", and my addiction to logic-based games."
                             </p>
                             <p>
-                                "Built with Rust, Leptos, Axum, and TailwindCSS. Containerized, deployed to "
-                                <a
-                                    target="_blank"
-                                    rel="noopener noreferrer nofollow"
-                                    href="http://Fly.io"
-                                >
-                                    "Fly.io"
-                                </a>", and protected by Cloudflare."
+                                "Built with Rust, Leptos, Axum, and TailwindCSS. Containerized, deployed to Fly.io, and protected by Cloudflare."
                             </p>
                         </div>
                     </div>
