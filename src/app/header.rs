@@ -32,7 +32,6 @@ struct HistState {
 
 #[component]
 pub fn Header() -> impl IntoView {
-    // TODO - actually get blog posts
     let blog_posts = Assets::iter()
         .map(|s| s[..s.len() - 3].to_string())
         .collect::<Vec<_>>();
@@ -152,10 +151,7 @@ pub fn Header() -> impl IntoView {
         } else {
             new
         };
-        if let Some(i) = val.rfind("/") {
-            let prefix = &val[..i + 1];
-            format!("{}{}", prefix, new)
-        } else if let Some(i) = val.rfind(" ") {
+        if let Some(i) = val.rfind(|c| matches!(c, '/' | ' ')) {
             let prefix = &val[..i + 1];
             format!("{}{}", prefix, new)
         } else {

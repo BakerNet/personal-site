@@ -12,7 +12,7 @@ pub fn BlogWrapper() -> impl IntoView {
     let clicked = ArcTrigger::new();
     provide_context(clicked.clone());
     view! {
-        <h1 class="font-bold text-2xl text-center mb-8">
+        <h1 class="font-bold text-2xl text-center mb-4">
             <a href="/blog" on:click=move |_| clicked.notify()>
                 "Hans Baker's Blog"
             </a>
@@ -24,6 +24,9 @@ pub fn BlogWrapper() -> impl IntoView {
                 <i class="extra-rss" />
             </a>
         </h1>
+        <div class="max-w-xl mx-auto text-center font-medium mb-8">
+            "Insights and ramblings of a Software Engineering professional who has worn many hats, but mainly wants to code."
+        </div>
         <div class="w-full max-w-4xl mx-auto text-left">
             <Outlet />
         </div>
@@ -83,7 +86,7 @@ pub fn BlogHome() -> impl IntoView {
                     set_search(el.value());
                 }
             >
-                <label for="blog_grep" class="font-md">
+                <label for="blog_grep" class="font-medium">
                     "Search (regex): "
                 </label>
                 <input
