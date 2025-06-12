@@ -104,7 +104,7 @@ pub fn BlogHome() -> impl IntoView {
                     if s.is_empty() {
                         "$ ls -lt blog".to_string()
                     } else {
-                        format!("$ grep -Eil '{}' blog/* | xargs ls -lt", s)
+                        format!("$ grep -Eil '{s}' blog/* | xargs ls -lt")
                     }
                 }}
             </div>
@@ -149,7 +149,7 @@ pub fn BlogHome() -> impl IntoView {
 
 #[server(input = GetUrl)]
 pub async fn get_post_server(name: String) -> Result<Post, ServerFnError> {
-    let name = format!("{}.md", name);
+    let name = format!("{name}.md");
     get_post(name)
         .await
         .ok_or(ServerFnError::new("Couldn't get blog post"))
@@ -194,7 +194,7 @@ pub fn BlogPage() -> impl IntoView {
                                         .fold(
                                             String::new(),
                                             |acc, s| {
-                                                if acc.is_empty() { s } else { format!("{}, {}", acc, s) }
+                                                if acc.is_empty() { s } else { format!("{acc}, {s}") }
                                             },
                                         ),
                                 )}
