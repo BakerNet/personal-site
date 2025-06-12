@@ -151,9 +151,9 @@ pub fn Header() -> impl IntoView {
         } else {
             new
         };
-        if let Some(i) = val.rfind(|c| matches!(c, '/' | ' ')) {
+        if let Some(i) = val.rfind(['/', ' ']) {
             let prefix = &val[..i + 1];
-            format!("{}{}", prefix, new)
+            format!("{prefix}{new}")
         } else {
             new.to_string()
         }

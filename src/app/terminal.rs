@@ -87,11 +87,11 @@ impl Terminal {
             Command::Touch => self.handle_touch(path, parts.collect()),
             Command::WhoAmI => CommandRes::Output(Arc::new(move || "user".into_any())),
             Command::Neofetch => CommandRes::Output(Arc::new(move || {
-                let text = AVATAR_BLOCK.iter().zip(INFO_BLOCK.iter()).map(|(a, b)| format!("{}  {}", a, b)).fold(String::new(), |acc, s| {
+                let text = AVATAR_BLOCK.iter().zip(INFO_BLOCK.iter()).map(|(a, b)| format!("{a}  {b}")).fold(String::new(), |acc, s| {
                     if acc.is_empty() {
                         s
                     } else {
-                        format!("{}\n{}", acc, s)
+                        format!("{acc}\n{s}")
                     }
                 });
                 view! { <div class="leading-tight" inner_html=text></div> }.into_any()
@@ -137,13 +137,13 @@ impl Terminal {
         let is_executable = matches!(target, Target::File(File::MinesSh | File::Nav(_))) && target_string.contains("/"); 
         if !args.is_empty() && !is_executable {
             // only mines.sh and nav.rs are executable, so only these can accept arguments
-            return CommandRes::Err(Arc::new(move || format!("command not found: {}", target_string).into_any()));
+            return CommandRes::Err(Arc::new(move || format!("command not found: {target_string}").into_any()));
         }
         match target {
             Target::Dir(_) => CommandRes::Redirect(target_path),
             Target::File(f) => {
                 if target_string.ends_with("/") {
-                    return CommandRes::Err(Arc::new(move || format!("not a directory: {}", target_string).into_any()));
+                    return CommandRes::Err(Arc::new(move || format!("not a directory: {target_string}").into_any()));
                 }
                 match f {
                     File::Nav(s) => {
@@ -153,19 +153,19 @@ impl Terminal {
                         if is_executable {
                             CommandRes::Redirect(MINES_URL.to_string())
                         } else {
-                            CommandRes::Err(Arc::new(move || format!("command not found: {}\nhint: try 'mines' or '/mines.sh'", target_string).into_any()))
+                            CommandRes::Err(Arc::new(move || format!("command not found: {target_string}\nhint: try 'mines' or '/mines.sh'").into_any()))
                         }
                     }
                     File::ThanksTxt => {
                         if target_string.contains("/") {
-                            CommandRes::Err(Arc::new(move || format!("permission denied: {}", target_string).into_any()))
+                            CommandRes::Err(Arc::new(move || format!("permission denied: {target_string}").into_any()))
                         } else {
-                            CommandRes::Err(Arc::new(move || format!("command not found: {}", target_string).into_any()))
+                            CommandRes::Err(Arc::new(move || format!("command not found: {target_string}").into_any()))
                         }
                     }
                 }
             }
-            Target::Invalid => CommandRes::Err(Arc::new(move || format!("command not found: {}", target_string).into_any())),
+            Target::Invalid => CommandRes::Err(Arc::new(move || format!("command not found: {target_string}").into_any())),
         }
     }
 
@@ -177,9 +177,8 @@ impl Terminal {
             let c = c.to_owned();
             return CommandRes::Err(Arc::new(move || {
                 format!(
-                    r#"ls: invalid option -- '{}'
-This version of ls only supports option 'a'"#,
-                    c
+                    r#"ls: invalid option -- '{c}'
+This version of ls only supports option 'a'"#
                 )
                 .into_any()
             }));
@@ -211,7 +210,7 @@ This version of ls only supports option 'a'"#,
                     let is_invalid = matches!(ts, Target::Invalid);
                     view! {
                         {if !is_invalid && last != 0 {
-                            format!("{}:\n", name)
+                            format!("{name}:\n")
                         } else {
                             "".to_string()
                         }}
@@ -225,7 +224,7 @@ This version of ls only supports option 'a'"#,
                             }
                             Target::File(f) => f.name().into_any(),
                             Target::Invalid => {
-                                format!("ls: cannot access '{}': No such file or directory", name)
+                                format!("ls: cannot access '{name}': No such file or directory")
                                     .into_any()
                             }
                         }}
@@ -254,13 +253,13 @@ This version of ls only supports option 'a'"#,
                 Target::File(_) => {
                     let other = target_string.clone();
                     CommandRes::Err(Arc::new(move || {
-                        format!("cd: not a directory: {}", other).into_any()
+                        format!("cd: not a directory: {other}").into_any()
                     }))
                 }
                 Target::Invalid => {
                     let other = target_string.clone();
                     CommandRes::Err(Arc::new(move || {
-                        format!("cd: no such file or directory: {}", other).into_any()
+                        format!("cd: no such file or directory: {other}").into_any()
                     }))
                 }
                 _ => CommandRes::Redirect(target_path),
@@ -276,9 +275,8 @@ This version of ls only supports option 'a'"#,
             let c = options[0].to_owned();
             return CommandRes::Err(Arc::new(move || {
                 format!(
-                    r#"cat: invalid option -- '{}'
-This version of cat doesn't support any options"#,
-                    c
+                    r#"cat: invalid option -- '{c}'
+This version of cat doesn't support any options"#
                 )
                 .into_any()
             }));
@@ -304,10 +302,10 @@ This version of cat doesn't support any options"#,
                 targets.iter().enumerate().map(|(i, (name, ts))| {
                     view! {
                         {match ts {
-                            Target::Dir(_) => format!("cat: {}: Is a directory", name).into_any(),
+                            Target::Dir(_) => format!("cat: {name}: Is a directory").into_any(),
                             Target::File(f) => f.contents().into_any(),
                             Target::Invalid => {
-                                format!("cat: {}: No such file or directory", name).into_any()
+                                format!("cat: {name}: No such file or directory").into_any()
                             }
                         }}
                         {if i != last { "\n" } else { "" }}
@@ -330,9 +328,8 @@ This version of cat doesn't support any options"#,
             let c = c.to_owned();
             return CommandRes::Err(Arc::new(move || {
                 format!(
-                    r#"cp: invalid option -- '{}'
-This version of cp only supports option 'r'"#,
-                    c
+                    r#"cp: invalid option -- '{c}'
+This version of cp only supports option 'r'"#
                 )
                 .into_any()
             }));
@@ -345,7 +342,7 @@ This version of cp only supports option 'r'"#,
         }
         if targets.len() < 2 {
             let target = targets[0].to_owned();
-            return CommandRes::Err(Arc::new(move || format!("cp: missing destination file operand after {}", target).into_any()));
+            return CommandRes::Err(Arc::new(move || format!("cp: missing destination file operand after {target}").into_any()));
         }
         let targets = targets.into_iter().enumerate().fold(
             Vec::new(), 
@@ -390,19 +387,19 @@ This version of cp only supports option 'r'"#,
                         {match full_ts {
                             Target::Dir(_) => {
                                 if name.ends_with("/") {
-                                   format!("cp: cannot create regular file '{}{}': Permission denied", name, target_filename).into_any()
+                                   format!("cp: cannot create regular file '{name}{target_filename}': Permission denied").into_any()
                                 }else {
-                                   format!("cp: cannot create regular file '{}/{}': Permission denied", name, target_filename).into_any()
+                                   format!("cp: cannot create regular file '{name}/{target_filename}': Permission denied").into_any()
                                 }
                             },
-                            Target::File(_) => format!("cp: cannot create regular file '{}': Permission denied", name).into_any(),
+                            Target::File(_) => format!("cp: cannot create regular file '{name}': Permission denied").into_any(),
                             Target::Invalid => {
                                 if name.ends_with("/") {
-                                    format!("cp: cannot create regular file '{}': Not a directory", name).into_any()
+                                    format!("cp: cannot create regular file '{name}': Not a directory").into_any()
                                 } else {
                                     match partial_ts {
-                                        Target::Dir(_) | Target::File(_) => format!("cp: cannot create regular file '{}': Permission denied", name).into_any(),
-                                        Target::Invalid => format!("cp: cannot create regular file '{}': No such file or directory", name).into_any(),
+                                        Target::Dir(_) | Target::File(_) => format!("cp: cannot create regular file '{name}': Permission denied").into_any(),
+                                        Target::Invalid => format!("cp: cannot create regular file '{name}': No such file or directory").into_any(),
                                     }
                                 }
                             }
@@ -423,9 +420,8 @@ This version of cp only supports option 'r'"#,
             let c = c.to_owned();
             return CommandRes::Err(Arc::new(move || {
                 format!(
-                    r#"mv: invalid option -- '{}'
-This version of mv only supports option 'r'"#,
-                    c
+                    r#"mv: invalid option -- '{c}'
+This version of mv only supports option 'r'"#
                 )
                 .into_any()
             }));
@@ -438,7 +434,7 @@ This version of mv only supports option 'r'"#,
         }
         if targets.len() < 2 {
             let target = targets[0].to_owned();
-            return CommandRes::Err(Arc::new(move || format!("mv: missing destination file operand after {}", target).into_any()));
+            return CommandRes::Err(Arc::new(move || format!("mv: missing destination file operand after {target}").into_any()));
         }
         let targets = targets.into_iter().enumerate().fold(
             Vec::new(), 
@@ -483,19 +479,19 @@ This version of mv only supports option 'r'"#,
                         {match full_ts {
                             Target::Dir(_) => {
                                 if name.ends_with("/") {
-                                   format!("mv: cannot create regular file '{}{}': Permission denied", name, target_filename).into_any()
+                                   format!("mv: cannot create regular file '{name}{target_filename}': Permission denied").into_any()
                                 }else {
-                                   format!("mv: cannot create regular file '{}/{}': Permission denied", name, target_filename).into_any()
+                                   format!("mv: cannot create regular file '{name}/{target_filename}': Permission denied").into_any()
                                 }
                             },
-                            Target::File(_) => format!("mv: cannot create regular file '{}': Permission denied", name).into_any(),
+                            Target::File(_) => format!("mv: cannot create regular file '{name}': Permission denied").into_any(),
                             Target::Invalid => {
                                 if name.ends_with("/") {
-                                    format!("mv: cannot create regular file '{}': Not a directory", name).into_any()
+                                    format!("mv: cannot create regular file '{name}': Not a directory").into_any()
                                 } else {
                                     match partial_ts {
-                                        Target::Dir(_) | Target::File(_) => format!("mv: cannot create regular file '{}': Permission denied", name).into_any(),
-                                        Target::Invalid => format!("mv: cannot create regular file '{}': No such file or directory", name).into_any(),
+                                        Target::Dir(_) | Target::File(_) => format!("mv: cannot create regular file '{name}': Permission denied").into_any(),
+                                        Target::Invalid => format!("mv: cannot create regular file '{name}': No such file or directory").into_any(),
                                     }
                                 }
                             }
@@ -533,7 +529,7 @@ This version of mv only supports option 'r'"#,
             let targets = targets.clone();
             move || {
                 targets.iter().enumerate().map(|(i, (name, ts))| {
-                    let base = format!("touch: cannot touch '{}': ", name);
+                    let base = format!("touch: cannot touch '{name}': ");
                     view! {
                         {match ts {
                             Target::Dir(_) => (base + "Permission denied").into_any(),
@@ -575,7 +571,7 @@ This version of mv only supports option 'r'"#,
             let targets = targets.clone();
             move || {
                 targets.iter().enumerate().map(|(i, (name, ts))| {
-                    let base = format!("mkdir: cannot create directory '{}': ", name);
+                    let base = format!("mkdir: cannot create directory '{name}': ");
                     view! {
                         {match ts {
                             Target::Dir(_) => (base + "Permission denied").into_any(),
@@ -603,9 +599,8 @@ This version of mv only supports option 'r'"#,
             let c = c.to_owned();
             return CommandRes::Err(Arc::new(move || {
                 format!(
-                    r#"rm: invalid option -- '{}'
-This version of rm only supports option 'r'"#,
-                    c
+                    r#"rm: invalid option -- '{c}'
+This version of rm only supports option 'r'"#
                 )
                 .into_any()
             }));
@@ -628,7 +623,7 @@ This version of rm only supports option 'r'"#,
             let targets = targets.clone();
             move || {
                 targets.iter().enumerate().map(|(i, (name, ts))| {
-                    let base = format!("rm: cannot remove '{}': ", name);
+                    let base = format!("rm: cannot remove '{name}': ");
                     view! {
                         {match ts {
                             Target::File(_) => (base + "Permission denied").into_any(),
@@ -688,7 +683,7 @@ This version of rm only supports option 'r'"#,
     }
 }
 
-fn parse_multitarget<'a>(args: Vec<&'a str>) -> (Vec<char>, Vec<&'a str>) {
+fn parse_multitarget(args: Vec<&str>) -> (Vec<char>, Vec<&str>) {
     args.into_iter().fold(
         (Vec::<char>::new(), Vec::<&str>::new()),
         |(mut options, mut t), s| {
@@ -796,7 +791,7 @@ fn num_rows(num_items: usize, cols: usize) -> usize {
 #[component]
 pub fn ColumnarView<F>(items: Vec<String>, render_func: F) -> impl IntoView 
 where
-    F: Fn(String) -> AnyView
+    F: Fn(String) -> AnyView + 'static
 {
     let available_space = window().inner_width().expect("should be able to get window width").as_f64().expect("window width should be a number").round() as usize - TERMINAL_MARGINS;
     let available_space = available_space / CHAR_WIDTH;
@@ -886,7 +881,7 @@ impl Dir {
                 items
             }
             Dir::Blog => {
-                let mut posts = blog_posts.iter().map(|bp| format!("{}/", bp)).collect::<Vec<_>>();
+                let mut posts = blog_posts.iter().map(|bp| format!("{bp}/")).collect::<Vec<_>>();
                 posts.append(&mut common);
                 posts.sort();
                 if all {
@@ -905,7 +900,7 @@ impl Dir {
             Dir::Base => "/".into(),
             Dir::Blog => "/blog".into(),
             Dir::CV => "/cv".into(),
-            Dir::BlogPost(s) => format!("/blog/{}", s),
+            Dir::BlogPost(s) => format!("/blog/{s}"),
         }
     }
 }
@@ -938,10 +933,10 @@ use leptos_router::{{hooks::use_navigate, UseNavigateOptions}};
 func main() {{
     Effect::new((_) => {{
         let navigate = use_navigate();
-        navigate("{}", UseNavigateOptions::default);
+        navigate("{s}", UseNavigateOptions::default);
     }})
 }}
-"#, s)
+"#)
             }
         }
     }

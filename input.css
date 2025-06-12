@@ -1,6 +1,37 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+    --color-background: #2e3440;
+    --color-foreground: #cdcecf;
+    --color-cursorColor: #cdcecf;
+    --color-selectionBackground: #3e4a5b;
+    --color-black: #3b4252;
+    --color-blue: #81a1c1;
+    --color-cyan: #88c0d0;
+    --color-green: #a3be8c;
+    --color-purple: #b48ead;
+    --color-red: #bf616a;
+    --color-white: #e5e9f0;
+    --color-yellow: #ebcb8b;
+    --color-orange: #d08770;
+    --color-brightBlack: #465780;
+    --color-brightBlue: #8cafd2;
+    --color-brightCyan: #93ccdc;
+    --color-brightGreen: #b1d196;
+    --color-brightPurple: #c895bf;
+    --color-brightRed: #d06f79;
+    --color-brightWhite: #e7ecf4;
+    --color-brightYellow: #f0d399;
+
+    --animate-blink: 'blink 1s ease-in-out infinite';
+
+    @keyframes blink {
+        50% { 
+            opacity: 0;
+        }
+    }
+}
+
 
 h1 {
     @apply text-purple font-bold;
