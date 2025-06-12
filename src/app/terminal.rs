@@ -796,7 +796,7 @@ fn num_rows(num_items: usize, cols: usize) -> usize {
 #[component]
 pub fn ColumnarView<F>(items: Vec<String>, render_func: F) -> impl IntoView 
 where
-    F: Fn(String) -> AnyView
+    F: Fn(String) -> AnyView + 'static
 {
     let available_space = window().inner_width().expect("should be able to get window width").as_f64().expect("window width should be a number").round() as usize - TERMINAL_MARGINS;
     let available_space = available_space / CHAR_WIDTH;

@@ -65,7 +65,7 @@ pub const INFO_BLOCK: [&str; 20] = [
     INFO_ROW_19,
 ];
 
-pub static INFO_ROW_0: &str = r#"<a href="mailto:contact@hansbaker.com" target="_blank"><span class="text-brightCyan">contact</span>@<span class="text-brightCyan">hansbaker.com</span></a> <button class="text-brightWhite" onclick="navigator.clipboard.writeText('contact@hansbaker.com').then(() => alert('copied: contact@hansbaker.com'))">📋</button>"#;
+pub static INFO_ROW_0: &str = r#"<a href="mailto:contact@hansbaker.com" target="_blank"><span class="text-brightCyan">contact</span>@<span class="text-brightCyan">hansbaker.com</span></a> <button class="text-brightWhite cursor-pointer" onclick="navigator.clipboard.writeText('contact@hansbaker.com').then(() => alert('copied: contact@hansbaker.com'))">📋</button>"#;
 pub static INFO_ROW_1: &str = r#"---------------------"#;
 pub static INFO_ROW_2: &str = r#"<span class="text-brightCyan">Name</span>: Hans Baker"#;
 pub static INFO_ROW_3: &str = r#"<span class="text-brightCyan">Location</span>: USA"#;

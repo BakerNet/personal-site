@@ -84,7 +84,7 @@ pub fn HomePage() -> impl IntoView {
                     <p>
                         "Email: "
                         <button
-                            class="text-brightWhite"
+                            class="text-brightWhite cursor-pointer"
                             onclick="navigator.clipboard.writeText('contact@hansbaker.com').then(() => alert('copied: contact@hansbaker.com'))"
                         >
                             <span class="font-bold">"contact@hansbaker.com"</span>

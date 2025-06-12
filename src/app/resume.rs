@@ -43,7 +43,7 @@ fn Sidebar() -> impl IntoView {
                     <div>
                         <h2 class="text-2xl font-bold">"Hans Baker"</h2>
                     </div>
-                    <div class="flex flex-col items-center rounded border border-primary px-3 py-4 text-sm">
+                    <div class="flex flex-col items-center rounded-sm border border-primary px-3 py-4 text-sm">
                         <div class="flex flex-col items-start gap-y-1.5 text-left">
                             <div class="flex items-center gap-x-1.5">
                                 <i class="extra-location"></i>
