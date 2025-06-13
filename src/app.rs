@@ -24,7 +24,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <AutoReload options=options.clone() />
                 <HydrationScripts options=options.clone() />
-                <HydrationStyles options />
+                <HashedStylesheet options />
                 <meta name="color-scheme" content="dark" />
                 <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
                 <link rel="stylesheet" href="/css/devicon.min.css" />
