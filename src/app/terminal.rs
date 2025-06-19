@@ -27,10 +27,20 @@ mines
 "#;
 const THANKS_TXT: &str = "Thank you to my wife and my daughter for bringing immense joy to my life.";
 
+#[derive(Debug, Clone)]
+struct Process {
+    pid: u32,
+    user: String,
+    cpu_percent: f32,
+    mem_percent: f32,
+    command: String,
+}
+
 pub struct Terminal {
     blog_posts: Vec<String>,
     history: Vec<String>,
     env_vars: HashMap<String, String>,
+    processes: Vec<Process>,
 }
 
 impl Terminal {
@@ -42,16 +52,63 @@ impl Terminal {
         env_vars.insert("SITE".to_string(), "hansbaker.com".to_string());
         env_vars.insert("VERSION".to_string(), env!("CARGO_PKG_VERSION").to_string());
         
+        let processes = Self::initialize_processes();
+        
         Self {
             blog_posts: blog_posts.to_owned(),
             history,
             env_vars,
+            processes,
         }
     }
 
     #[cfg(feature = "hydrate")]
     pub fn set_history(&mut self, history: Vec<String>) {
         self.history = history;
+    }
+
+    fn initialize_processes() -> Vec<Process> {
+        vec![
+            Process {
+                pid: 1,
+                user: "root".to_string(),
+                cpu_percent: 2.3,
+                mem_percent: 15.2,
+                command: "leptos-server".to_string(),
+            },
+            Process {
+                pid: 42,
+                user: "app".to_string(),
+                cpu_percent: 0.1,
+                mem_percent: 8.7,
+                command: "blog-renderer".to_string(),
+            },
+            Process {
+                pid: 99,
+                user: "app".to_string(),
+                cpu_percent: 0.2,
+                mem_percent: 3.1,
+                command: "terminal-sim".to_string(),
+            },
+            Process {
+                pid: 128,
+                user: "app".to_string(),
+                cpu_percent: 0.0,
+                mem_percent: 2.5,
+                command: "wasm-hydrator".to_string(),
+            },
+            Process {
+                pid: 256,
+                user: "app".to_string(),
+                cpu_percent: 0.0,
+                mem_percent: 1.8,
+                command: "rss-generator".to_string(),
+            },
+        ]
+    }
+
+    fn get_process_by_pid(&self, pid: u32) -> Option<&Process> {
+        self.processes.iter().find(|p| p.pid == pid)
     }
 
     #[cfg(feature = "hydrate")]
@@ -154,6 +211,9 @@ impl Terminal {
                 view! { <div class="leading-tight" inner_html=text></div> }.into_any()
             })),
             Command::Sudo => CommandRes::Err(Arc::new(move || "user is not in the sudoers file. This incident will be reported.".into_any())),
+            Command::Uptime => self.handle_uptime(),
+            Command::Ps => self.handle_ps(parts.collect()),
+            Command::Kill => self.handle_kill(parts.collect()),
             Command::Unknown => self.handle_unknown(path, cmd_text, parts.collect()),
         }
     }
@@ -785,7 +845,7 @@ This version of rm only supports option 'r'"#
                 "cd" | "pwd" | "echo" | "history" => format!("{}: shell builtin", command),
                 
                 // External commands (simulated paths)
-                "help" | "ls" | "cat" | "clear" | "cp" | "date" | "mines" | "mkdir" | "mv" | "rm" | "touch" | "which" | "whoami" | "neofetch" => {
+                "help" | "ls" | "cat" | "clear" | "cp" | "date" | "mines" | "mkdir" | "mv" | "rm" | "touch" | "which" | "whoami" | "neofetch" | "uptime" | "ps" | "kill" => {
                     format!("/usr/bin/{}", command)
                 }
                 
@@ -837,6 +897,151 @@ This version of rm only supports option 'r'"#
         };
         
         CommandRes::Output(Arc::new(move || result.clone().into_any()))
+    }
+
+    fn handle_uptime(&self) -> CommandRes {
+        use chrono::prelude::*;
+        
+        let now = Local::now();
+        let current_time = now.format("%H:%M:%S").to_string();
+        
+        // Use the actual build time as the start point for uptime
+        let build_time_str = env!("BUILD_TIME");
+        let build_time = match DateTime::parse_from_rfc3339(build_time_str) {
+            Ok(dt) => dt.with_timezone(&Local),
+            Err(_) => {
+                // Fallback to a reasonable default if parsing fails
+                now - chrono::Duration::days(42) - chrono::Duration::hours(13) - chrono::Duration::minutes(37)
+            }
+        };
+        
+        let uptime_duration = now.signed_duration_since(build_time);
+        let uptime_days = uptime_duration.num_days();
+        let uptime_hours = uptime_duration.num_hours() % 24;
+        let uptime_minutes = uptime_duration.num_minutes() % 60;
+        
+        // Generate slightly varying load averages based on current time
+        let base_seed = (now.timestamp() / 300) as f64; // Change every 5 minutes
+        let load_1 = 0.08 + (base_seed * 0.001).sin() * 0.02;
+        let load_5 = 0.12 + (base_seed * 0.0015).cos() * 0.03;
+        let load_15 = 0.15 + (base_seed * 0.002).sin() * 0.02;
+        
+        let output = format!(
+            "{} up {} days, {}:{:02}, load average: {:.2}, {:.2}, {:.2}",
+            current_time,
+            uptime_days,
+            uptime_hours,
+            uptime_minutes,
+            load_1,
+            load_5,
+            load_15
+        );
+        
+        CommandRes::Output(Arc::new(move || output.clone().into_any()))
+    }
+
+    fn handle_ps(&self, args: Vec<&str>) -> CommandRes {
+        // Check for supported options
+        if args.len() > 1 {
+            return CommandRes::Err(Arc::new(move || "ps: too many arguments".into_any()));
+        }
+        
+        let detailed = if args.is_empty() {
+            false
+        } else if args[0] == "aux" {
+            true
+        } else {
+            let arg = args[0].to_string();
+            return CommandRes::Err(Arc::new(move || {
+                format!("ps: invalid argument -- '{arg}'\nUsage: ps [aux]").into_any()
+            }));
+        };
+
+        let processes = self.processes.clone();
+        let output = if detailed {
+            // Detailed format: USER PID %CPU %MEM COMMAND
+            let mut lines = vec!["USER       PID %CPU %MEM COMMAND".to_string()];
+            for process in processes {
+                lines.push(format!(
+                    "{:<8} {:>5} {:>4.1} {:>4.1} {}",
+                    process.user,
+                    process.pid,
+                    process.cpu_percent,
+                    process.mem_percent,
+                    process.command
+                ));
+            }
+            lines.join("\n")
+        } else {
+            // Basic format: PID COMMAND
+            let mut lines = vec!["  PID COMMAND".to_string()];
+            for process in processes {
+                lines.push(format!("{:>5} {}", process.pid, process.command));
+            }
+            lines.join("\n")
+        };
+
+        CommandRes::Output(Arc::new(move || output.clone().into_any()))
+    }
+
+    fn handle_kill(&self, args: Vec<&str>) -> CommandRes {
+        if args.is_empty() {
+            return CommandRes::Err(Arc::new(move || "kill: not enough arguments".into_any()));
+        }
+
+        // Handle signal arguments
+        let pid_str = if args.len() == 2 {
+            let signal_arg = args[0];
+            if signal_arg == "-9" {
+                args[1]
+            } else if signal_arg.starts_with("-") {
+                let signal_name = &signal_arg[1..];
+                if signal_name.chars().all(|c| c.is_ascii_alphabetic()) {
+                    let signal_name = signal_name.to_uppercase();
+                    return CommandRes::Err(Arc::new(move || {
+                        format!("kill: unknown signal: SIG{}", signal_name).into_any()
+                    }));
+                } else {
+                    return CommandRes::Err(Arc::new(move || "kill: usage: kill [-n signum] pid".into_any()));
+                }
+            } else {
+                return CommandRes::Err(Arc::new(move || "kill: usage: kill [-n signum] pid".into_any()));
+            }
+        } else if args.len() == 1 {
+            args[0]
+        } else {
+            return CommandRes::Err(Arc::new(move || "kill: usage: kill [-n signum] pid".into_any()));
+        };
+
+        let pid = match pid_str.parse::<u32>() {
+            Ok(p) => p,
+            Err(_) => {
+                let pid_str = pid_str.to_string();
+                return CommandRes::Err(Arc::new(move || format!("kill: illegal pid: {pid_str}").into_any()));
+            }
+        };
+
+        // Check if process exists
+        let process_exists = self.get_process_by_pid(pid).is_some();
+        
+        if !process_exists {
+            return CommandRes::Err(Arc::new(move || format!("kill: kill {pid} failed: no such process").into_any()));
+        }
+
+        // Handle special PID 42 with easter egg
+        if pid == 42 {
+            let message = "Answer to everything terminated\nkill: kill 42 failed: operation not permitted";
+            return CommandRes::Err(Arc::new(move || message.into_any()));
+        }
+
+        // All core services show permission denied
+        let core_services = vec![1, 42, 99, 128, 256];
+        if core_services.contains(&pid) {
+            return CommandRes::Err(Arc::new(move || format!("kill: kill {pid} failed: operation not permitted").into_any()));
+        }
+
+        // This shouldn't be reached with our current process list, but included for completeness
+        CommandRes::Err(Arc::new(move || format!("kill: kill {pid} failed: operation not permitted").into_any()))
     }
 
     fn tab_opts(&self, path: &str, target_path: &str) -> Vec<String> {
@@ -1194,6 +1399,9 @@ enum Command {
     Which,
     WhoAmI,
     Sudo,
+    Uptime,
+    Ps,
+    Kill,
     Unknown,
 }
 
@@ -1219,6 +1427,9 @@ impl From<&str> for Command {
             "whoami" => Self::WhoAmI,
             "neofetch" => Self::Neofetch,
             "sudo" => Self::Sudo,
+            "uptime" => Self::Uptime,
+            "ps" => Self::Ps,
+            "kill" => Self::Kill,
             _ => Self::Unknown,
         }
     }
@@ -1226,7 +1437,7 @@ impl From<&str> for Command {
 
 impl Command {
     fn all() -> Vec<&'static str> {
-        vec!["help", "pwd", "ls", "cd", "cat", "clear", "cp", "date", "echo", "history", "mines", "mkdir", "mv", "rm", "touch", "which", "whoami", "neofetch"]
+        vec!["help", "pwd", "ls", "cd", "cat", "clear", "cp", "date", "echo", "history", "mines", "mkdir", "mv", "rm", "touch", "which", "whoami", "neofetch", "uptime", "ps", "kill"]
     }
 }
 
@@ -1466,7 +1677,152 @@ mod tests {
         assert!(matches!(Command::from("history"), Command::History));
         assert!(matches!(Command::from("which"), Command::Which));
         assert!(matches!(Command::from("date"), Command::Date));
+        assert!(matches!(Command::from("uptime"), Command::Uptime));
+        assert!(matches!(Command::from("ps"), Command::Ps));
+        assert!(matches!(Command::from("kill"), Command::Kill));
         assert!(matches!(Command::from("unknown"), Command::Unknown));
+    }
+
+    #[test]
+    fn test_uptime_command() {
+        let mut terminal = create_test_terminal();
+        
+        // Test basic uptime command
+        let result = terminal.handle_command("/", "uptime");
+        match result {
+            CommandRes::Output(_) => {}, // Expected
+            _ => panic!("Expected output for uptime command"),
+        }
+    }
+
+    #[test]
+    fn test_ps_command() {
+        let mut terminal = create_test_terminal();
+        
+        // Test basic ps command
+        let result = terminal.handle_command("/", "ps");
+        match result {
+            CommandRes::Output(_) => {}, // Expected
+            _ => panic!("Expected output for ps command"),
+        }
+        
+        // Test ps aux command
+        let result = terminal.handle_command("/", "ps aux");
+        match result {
+            CommandRes::Output(_) => {}, // Expected
+            _ => panic!("Expected output for ps aux command"),
+        }
+        
+        // Test ps with invalid argument
+        let result = terminal.handle_command("/", "ps invalid");
+        match result {
+            CommandRes::Err(_) => {}, // Expected
+            _ => panic!("Expected error for ps with invalid argument"),
+        }
+    }
+
+    #[test]
+    fn test_kill_command() {
+        let mut terminal = create_test_terminal();
+        
+        // Test kill with valid PID (should show permission denied)
+        let result = terminal.handle_command("/", "kill 1");
+        match result {
+            CommandRes::Err(_) => {}, // Expected (permission denied)
+            _ => panic!("Expected error for kill 1"),
+        }
+        
+        // Test kill with PID 42 easter egg
+        let result = terminal.handle_command("/", "kill 42");
+        match result {
+            CommandRes::Err(_) => {}, // Expected (with easter egg message)
+            _ => panic!("Expected error for kill 42"),
+        }
+        
+        // Test kill with force flag
+        let result = terminal.handle_command("/", "kill -9 99");
+        match result {
+            CommandRes::Err(_) => {}, // Expected (permission denied)
+            _ => panic!("Expected error for kill -9 99"),
+        }
+        
+        // Test kill with non-existent PID
+        let result = terminal.handle_command("/", "kill 999");
+        match result {
+            CommandRes::Err(_) => {}, // Expected (no such process)
+            _ => panic!("Expected error for kill 999"),
+        }
+        
+        // Test kill without arguments
+        let result = terminal.handle_command("/", "kill");
+        match result {
+            CommandRes::Err(_) => {}, // Expected
+            _ => panic!("Expected error for kill without arguments"),
+        }
+        
+        // Test kill with invalid PID
+        let result = terminal.handle_command("/", "kill abc");
+        match result {
+            CommandRes::Err(_) => {}, // Expected
+            _ => panic!("Expected error for kill with invalid PID"),
+        }
+    }
+
+    #[test]
+    fn test_process_system() {
+        let terminal = create_test_terminal();
+        
+        // Test that processes are initialized
+        assert_eq!(terminal.processes.len(), 5);
+        
+        // Test get_process_by_pid
+        assert!(terminal.get_process_by_pid(1).is_some());
+        assert!(terminal.get_process_by_pid(42).is_some());
+        assert!(terminal.get_process_by_pid(999).is_none());
+        
+        // Test process data
+        let process_1 = terminal.get_process_by_pid(1).unwrap();
+        assert_eq!(process_1.command, "leptos-server");
+        assert_eq!(process_1.user, "root");
+        assert_eq!(process_1.pid, 1);
+        
+        let process_42 = terminal.get_process_by_pid(42).unwrap();
+        assert_eq!(process_42.command, "blog-renderer");
+        assert_eq!(process_42.user, "app");
+        assert_eq!(process_42.pid, 42);
+    }
+
+    #[test]
+    fn test_system_commands_in_tab_completion() {
+        let terminal = create_test_terminal();
+        
+        // Test that new system commands are included in tab completion
+        let commands = terminal.tab_commands("u");
+        assert!(commands.contains(&"uptime".to_string()));
+        
+        let commands = terminal.tab_commands("p");
+        assert!(commands.contains(&"ps".to_string()));
+        
+        let commands = terminal.tab_commands("k");
+        assert!(commands.contains(&"kill".to_string()));
+    }
+
+    #[test]
+    fn test_system_commands_in_which() {
+        let mut terminal = create_test_terminal();
+        
+        // Test which with new system commands
+        let result = terminal.handle_command("/", "which uptime");
+        match result {
+            CommandRes::Output(_) => {}, // Expected
+            _ => panic!("Expected output for which uptime"),
+        }
+        
+        let result = terminal.handle_command("/", "which ps kill");
+        match result {
+            CommandRes::Output(_) => {}, // Expected
+            _ => panic!("Expected output for which ps kill"),
+        }
     }
 
     #[test]
