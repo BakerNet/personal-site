@@ -7,24 +7,24 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-axum = { version = "0.7", optional = true }
+axum = { version = "0.8", optional = true }
 codee = { version = "0.3", features = ["json_serde_wasm"] }
 console_error_panic_hook = "0.1"
-leptos = { version = "0.7.0", features = ["nightly"] }
-leptos_axum = { version = "0.7.0", optional = true }
-leptos_meta = { version = "0.7.0" }
-leptos_router = { version = "0.7.0", features = ["nightly"] }
-leptos-use = { version = "0.15.0", features = ["storage"] }
+leptos = { version = "0.8.0", features = ["nightly"] }
+leptos_axum = { version = "0.8.0", optional = true }
+leptos_meta = { version = "0.8.0" }
+leptos_router = { version = "0.8.0", features = ["nightly"] }
+leptos-use = { version = "0.16.0", features = ["storage"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"], optional = true }
-tower = { version = "0.4", optional = true }
-tower-http = { version = "0.5", features = ["fs"], optional = true }
+tower = { version = "0.5", optional = true }
+tower-http = { version = "0.6", features = ["fs"], optional = true }
 wasm-bindgen = "=0.2.100"
 serde = "1"
 serde_json = "1"
-thiserror = "1"
+thiserror = "2"
 tracing = { version = "0.1", optional = true }
 http = "1"
-pulldown-cmark = { version = "0.12", optional = true }
+pulldown-cmark = { version = "0.13", optional = true }
 rust-embed = "8.5"
 chrono = { version = "0.4", features = ["serde"] }
 gray_matter = { version = "0.2", optional = true }
