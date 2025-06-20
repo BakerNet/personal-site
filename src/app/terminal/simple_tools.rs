@@ -280,8 +280,7 @@ impl UptimeCommand {
         let load_15 = 0.15 + (base_seed * 0.002).sin() * 0.02;
 
         format!(
-            "{} up {} days, {}:{:02}, load average: {:.2}, {:.2}, {:.2}",
-            current_time, uptime_days, uptime_hours, uptime_minutes, load_1, load_5, load_15
+            "{current_time} up {uptime_days} days, {uptime_hours}:{uptime_minutes:02}, load average: {load_1:.2}, {load_5:.2}, {load_15:.2}"
         )
     }
 }

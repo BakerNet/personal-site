@@ -117,12 +117,11 @@ impl Executable for KillCommand {
         }
 
         let pids = if args[0].starts_with("-") {
-            let signal_name = &args[0][1..];
-            if !SIGS.contains(&signal_name) {
+            let signal_name = args[0][1..].to_uppercase();
+            if !SIGS.contains(&signal_name.as_str()) {
                 if signal_name.chars().all(|c| c.is_ascii_alphabetic()) {
-                    let signal_name = signal_name.to_uppercase();
                     return CommandRes::Err(Arc::new(move || {
-                        format!("kill: unknown signal: SIG{}", signal_name).into_any()
+                        format!("kill: unknown signal: SIG{signal_name}").into_any()
                     }));
                 } else {
                     return CommandRes::Err(Arc::new(move || {
@@ -169,7 +168,7 @@ impl Executable for KillCommand {
         }
 
         // All core services show permission denied
-        let core_services = vec![1, 42, 99, 128, 256];
+        let core_services = [1, 42, 99, 128, 256];
         if core_services.contains(&pid) {
             return CommandRes::Err(Arc::new(move || {
                 format!("kill: kill {pid} failed: operation not permitted").into_any()

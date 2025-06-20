@@ -38,25 +38,25 @@ impl WhichCommand {
             if is_executable {
                 (command.to_string(), true)
             } else {
-                (format!("{} not found", command), false)
+                (format!("{command} not found"), false)
             }
         } else if let Some(alias) = CommandAlias::from_str(command) {
             // Check if it's an alias first
             let expansion = alias.expand("");
-            (format!("{}: aliased to {}", command, expansion), true)
+            (format!("{command}: aliased to {expansion}"), true)
         } else {
             // Map commands to their simulated paths
             match command {
                 // Shell builtins
-                "cd" | "pwd" | "echo" | "history" => (format!("{}: shell builtin", command), true),
+                "cd" | "pwd" | "echo" | "history" => (format!("{command}: shell builtin"), true),
                 
                 // External commands (simulated paths)
                 "help" | "ls" | "cat" | "clear" | "cp" | "date" | "mines" | "mkdir" | "mv" | "rm" | "touch" | "which" | "whoami" | "neofetch" | "uptime" | "ps" | "kill" => {
-                    (format!("/usr/bin/{}", command), true)
+                    (format!("/usr/bin/{command}"), true)
                 }
                 
                 // Unknown command
-                _ => (format!("{} not found", command), false),
+                _ => (format!("{command} not found"), false),
             }
         }
     }
@@ -200,11 +200,10 @@ impl Terminal {
         
         for alias in CommandAlias::all() {
             let alias_str = alias.as_str();
-            if trimmed.starts_with(alias_str) {
+            if let Some(args) = trimmed.strip_prefix(alias_str) {
                 if trimmed == alias_str {
                     return alias.expand("");
-                } else if trimmed.starts_with(&format!("{} ", alias_str)) {
-                    let args = &trimmed[alias_str.len()..];
+                } else if trimmed.starts_with(&format!("{alias_str} ")) {
                     return alias.expand(args);
                 }
             }
@@ -224,11 +223,11 @@ impl Terminal {
             let var_name = &remaining[..end];
             
             if let Some(value) = env_vars.get(var_name) {
-                let var_ref = format!("${}", var_name);
+                let var_ref = format!("${var_name}");
                 result = result.replace(&var_ref, value);
             } else {
                 // Replace with empty string if variable not found
-                let var_ref = format!("${}", var_name);
+                let var_ref = format!("${var_name}");
                 result = result.replace(&var_ref, "");
             }
         }

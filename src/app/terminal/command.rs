@@ -13,7 +13,7 @@ pub enum PipelineRes {
 }
 
 impl PipelineRes {
-    pub fn to_command_res(self) -> CommandRes {
+    pub fn into_command_res(self) -> CommandRes {
         match self {
             PipelineRes::EmptyErr => CommandRes::EmptyErr,
             PipelineRes::Err(msg) => CommandRes::Err(Arc::new(move || msg.clone().into_any())),
@@ -131,21 +131,21 @@ impl CommandAlias {
                 if args.is_empty() {
                     "ls -la".to_string()
                 } else {
-                    format!("ls -la{}", args)
+                    format!("ls -la{args}")
                 }
             }
             CommandAlias::La => {
                 if args.is_empty() {
                     "ls -a".to_string()
                 } else {
-                    format!("ls -a{}", args)
+                    format!("ls -a{args}")
                 }
             }
             CommandAlias::H => {
                 if args.is_empty() {
                     "history".to_string()
                 } else {
-                    format!("history{}", args)
+                    format!("history{args}")
                 }
             }
         }
