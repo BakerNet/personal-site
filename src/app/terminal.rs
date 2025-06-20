@@ -1,39 +1,89 @@
-use std::{collections::{HashMap, VecDeque}, sync::Arc};
+mod command;
+mod simple_tools;
+mod ps_tools;
+mod fs;
+mod components;
 
-use leptos::{either::*, prelude::*};
-use leptos_router::components::*;
+pub use command::CommandRes;
+pub use components::ColumnarView;
 
-use super::ascii::{AVATAR_BLOCK, INFO_BLOCK};
+use std::{collections::{HashMap}, sync::Arc};
 
-const LEN_OF_NAV: usize = 7;
-const CHAR_WIDTH: usize = 9;
-const TERMINAL_MARGINS: usize = 65;
-const MINES_URL: &str = "https://mines.hansbaker.com";
-const HELP_TEXT: &str = r#"This is Hans Baker's personal website.  Use this terminal to navigate the site.
-The commands should feel familiar:
-    cat     concatenate files and print to the standard output
-    cd      change directory (navigate site)
-    clear   clear the terminal screen
-    ls      list directory contents (sitemap)
-    mines   minesweeper app
-    pwd     print name of the current/working directory (current URL path)
-"#;
-const MINES_SH: &str = r#"#!/bin/bash
-set -e
+use leptos::prelude::*;
 
-# https://mines.hansbaker.com
-# Minesweeper client with multiplayer, replay analysis, and stat tracking
-mines
-"#;
-const THANKS_TXT: &str = "Thank you to my wife and my daughter for bringing immense joy to my life.";
+use fs::{File, parse_multitarget, path_target_to_target_path, Target};
+use command::{Command, CommandAlias, Executable, PipelineRes};
+use simple_tools::{WhoAmICommand, PwdCommand, DateCommand, NeofetchCommand, MinesCommand, HelpCommand, UptimeCommand, EchoCommand, ClearCommand, SudoCommand};
+use ps_tools::{Process, PsCommand, KillCommand};
+use components::{LsView, LsViewProps};
 
-#[derive(Debug, Clone)]
-struct Process {
-    pid: u32,
-    user: String,
-    cpu_percent: f32,
-    mem_percent: f32,
-    command: String,
+pub struct WhichCommand {
+    blog_posts: Vec<String>,
+}
+
+impl WhichCommand {
+    pub fn new(blog_posts: Vec<String>) -> Self {
+        Self { blog_posts }
+    }
+    
+    fn get_which_result(&self, path: &str, command: &str) -> (String, bool) {
+        // If the command contains a path separator, treat it as a file path
+        if command.contains('/') {
+            let target_path = path_target_to_target_path(path, command, false);
+            let target = Target::from_str(&target_path, &self.blog_posts);
+            
+            // Check if it's an executable file
+            let is_executable = target.is_executable();
+            
+            if is_executable {
+                (command.to_string(), true)
+            } else {
+                (format!("{} not found", command), false)
+            }
+        } else if let Some(alias) = CommandAlias::from_str(command) {
+            // Check if it's an alias first
+            let expansion = alias.expand("");
+            (format!("{}: aliased to {}", command, expansion), true)
+        } else {
+            // Map commands to their simulated paths
+            match command {
+                // Shell builtins
+                "cd" | "pwd" | "echo" | "history" => (format!("{}: shell builtin", command), true),
+                
+                // External commands (simulated paths)
+                "help" | "ls" | "cat" | "clear" | "cp" | "date" | "mines" | "mkdir" | "mv" | "rm" | "touch" | "which" | "whoami" | "neofetch" | "uptime" | "ps" | "kill" => {
+                    (format!("/usr/bin/{}", command), true)
+                }
+                
+                // Unknown command
+                _ => (format!("{} not found", command), false),
+            }
+        }
+    }
+}
+
+impl Executable for WhichCommand {
+    fn execute(&self, path: &str, args: Vec<&str>) -> CommandRes {
+        if args.is_empty() {
+            return CommandRes::Err(Arc::new(move || "which: missing argument".into_any()));
+        }
+        
+        let mut is_err = false;
+        let results: Vec<String> = args.iter().map(|&command| {
+            let (text, found) = self.get_which_result(path, command);
+            if !found {
+                is_err = true;
+            }
+            text
+        }).collect();
+        
+        let output = results.join("\n");
+        CommandRes::Output(Arc::new(move || output.clone().into_any()))
+    }
+    
+    fn execute_pipeable(&self, _path: &str, _args: Vec<&str>, _stdin: &str) -> PipelineRes {
+        todo!()
+    }
 }
 
 pub struct Terminal {
@@ -41,6 +91,7 @@ pub struct Terminal {
     history: Vec<String>,
     env_vars: HashMap<String, String>,
     processes: Vec<Process>,
+    commands: HashMap<Command, Box<dyn Executable>>,
 }
 
 impl Terminal {
@@ -53,13 +104,18 @@ impl Terminal {
         env_vars.insert("VERSION".to_string(), env!("CARGO_PKG_VERSION").to_string());
         
         let processes = Self::initialize_processes();
+        let commands = HashMap::new(); // Will be populated after construction
         
-        Self {
+        let mut terminal = Self {
             blog_posts: blog_posts.to_owned(),
             history,
             env_vars,
             processes,
-        }
+            commands,
+        };
+        
+        terminal.initialize_commands();
+        terminal
     }
 
     #[cfg(feature = "hydrate")]
@@ -107,8 +163,27 @@ impl Terminal {
         ]
     }
 
-    fn get_process_by_pid(&self, pid: u32) -> Option<&Process> {
-        self.processes.iter().find(|p| p.pid == pid)
+    fn initialize_commands(&mut self) {
+        // Simple commands (no context needed)
+        self.commands.insert(Command::Help, Box::new(HelpCommand));
+        self.commands.insert(Command::Pwd, Box::new(PwdCommand));
+        self.commands.insert(Command::WhoAmI, Box::new(WhoAmICommand));
+        self.commands.insert(Command::Clear, Box::new(ClearCommand));
+        self.commands.insert(Command::Neofetch, Box::new(NeofetchCommand));
+        self.commands.insert(Command::Mines, Box::new(MinesCommand));
+        self.commands.insert(Command::Sudo, Box::new(SudoCommand));
+        self.commands.insert(Command::Echo, Box::new(EchoCommand));
+        self.commands.insert(Command::Date, Box::new(DateCommand));
+        self.commands.insert(Command::Uptime, Box::new(UptimeCommand));
+
+        // Process commands
+        self.commands.insert(Command::Ps, Box::new(PsCommand::new(self.processes.clone())));
+        self.commands.insert(Command::Kill, Box::new(KillCommand::new(self.processes.clone())));
+        
+        // Filesystem commands
+        self.commands.insert(Command::Which, Box::new(WhichCommand::new(self.blog_posts.clone())));
+
+        // Note: History command left in legacy system due to mutable requirements
     }
 
     #[cfg(feature = "hydrate")]
@@ -178,43 +253,28 @@ impl Terminal {
         } else {
             return CommandRes::EmptyErr;
         };
+        // Convert string to Command enum for type-safe lookup
         let cmd = Command::from(cmd_text);
+        
+        // Try to find command in the new trait-based registry first
+        if let Some(command) = self.commands.get(&cmd) {
+            return command.execute(path, parts.collect());
+        }
+        
+        // Fall back to legacy command handling for unimplemented commands
         match cmd {
-            Command::Help => CommandRes::Output(Arc::new(move || HELP_TEXT.into_any())),
-            Command::Pwd => {
-                let path = path.to_owned();
-                CommandRes::Output(Arc::new(move || view! { {path.clone()} }.into_any()))
-            }
             Command::Ls => self.handle_ls(path, parts.collect()),
             Command::Cd => self.handle_cd(path, parts.collect()),
             Command::Cat => self.handle_cat(path, parts.collect()),
-            Command::Clear => CommandRes::Nothing,
-            Command::Mines => CommandRes::Redirect(MINES_URL.to_string()),
             Command::MkDir => self.handle_mkdir(path, parts.collect()),
             Command::Rm => self.handle_rm(path, parts.collect()),
-            Command::Echo => self.handle_echo(parts.collect()),
             Command::History => self.handle_history(parts.collect()),
             Command::Mv => self.handle_mv(path, parts.collect()),
             Command::Cp => self.handle_cp(path, parts.collect()),
-            Command::Date => self.handle_date(parts.collect()),
             Command::Touch => self.handle_touch(path, parts.collect()),
-            Command::Which => self.handle_which(path, parts.collect()),
-            Command::WhoAmI => CommandRes::Output(Arc::new(move || "user".into_any())),
-            Command::Neofetch => CommandRes::Output(Arc::new(move || {
-                let text = AVATAR_BLOCK.iter().zip(INFO_BLOCK.iter()).map(|(a, b)| format!("{a}  {b}")).fold(String::new(), |acc, s| {
-                    if acc.is_empty() {
-                        s
-                    } else {
-                        format!("{acc}\n{s}")
-                    }
-                });
-                view! { <div class="leading-tight" inner_html=text></div> }.into_any()
-            })),
-            Command::Sudo => CommandRes::Err(Arc::new(move || "user is not in the sudoers file. This incident will be reported.".into_any())),
-            Command::Uptime => self.handle_uptime(),
-            Command::Ps => self.handle_ps(parts.collect()),
-            Command::Kill => self.handle_kill(parts.collect()),
             Command::Unknown => self.handle_unknown(path, cmd_text, parts.collect()),
+            // Trait-based commands are handled above
+            _ => self.handle_unknown(path, cmd_text, parts.collect()),
         }
     }
 
@@ -251,7 +311,7 @@ impl Terminal {
         let target_string = target.to_owned();
         let target_path = path_target_to_target_path(path, target, false);
         let target = Target::from_str(&target_path, &self.blog_posts);
-        let is_executable = matches!(target, Target::File(File::MinesSh | File::Nav(_))) && target_string.contains("/"); 
+        let is_executable = target.is_executable() && target_string.contains("/"); 
         if !args.is_empty() && !is_executable {
             // only mines.sh and nav.rs are executable, so only these can accept arguments
             return CommandRes::Err(Arc::new(move || format!("command not found: {target_string}").into_any()));
@@ -268,7 +328,7 @@ impl Terminal {
                     }
                     File::MinesSh => {
                         if is_executable {
-                            CommandRes::Redirect(MINES_URL.to_string())
+                            MinesCommand.execute(path, args)
                         } else {
                             CommandRes::Err(Arc::new(move || format!("command not found: {target_string}\nhint: try 'mines' or '/mines.sh'").into_any()))
                         }
@@ -758,17 +818,6 @@ This version of rm only supports option 'r'"#
         CommandRes::Err(Arc::new(callback))
     }
 
-    fn handle_echo(&self, args: Vec<&str>) -> CommandRes {
-        let message = args.iter().map(|s| s.replace("\"", "")).collect::<Vec<_>>().join(" ");
-        
-        // Check for unsupported command substitution
-        if message.contains("$(") {
-            return CommandRes::Err(Arc::new(move || "echo: command substitution not supported".into_any()));
-        }
-        
-        CommandRes::Output(Arc::new(move || message.clone().into_any()))
-    }
-
     fn handle_history(&mut self, args: Vec<&str>) -> CommandRes {
         if args.len() > 1 {
             return CommandRes::Err(Arc::new(move || "history: too many arguments".into_any()));
@@ -807,243 +856,6 @@ This version of rm only supports option 'r'"#
         CommandRes::Output(Arc::new(move || output.clone().into_any()))
     }
 
-    fn handle_which(&self, path: &str, args: Vec<&str>) -> CommandRes {
-        if args.is_empty() {
-            return CommandRes::Err(Arc::new(move || "which: missing argument".into_any()));
-        }
-        
-        let results: Vec<String> = args.iter().map(|&command| {
-            self.get_which_result(path, command)
-        }).collect();
-        
-        let output = results.join("\n");
-        CommandRes::Output(Arc::new(move || output.clone().into_any()))
-    }
-    
-    fn get_which_result(&self, path: &str, command: &str) -> String {
-        // If the command contains a path separator, treat it as a file path
-        if command.contains('/') {
-            let target_path = path_target_to_target_path(path, command, false);
-            let target = Target::from_str(&target_path, &self.blog_posts);
-            
-            // Check if it's an executable file
-            let is_executable = matches!(target, Target::File(File::MinesSh | File::Nav(_)));
-            
-            if is_executable {
-                command.to_string()
-            } else {
-                format!("{} not found", command)
-            }
-        } else if let Some(alias) = CommandAlias::from_str(command) {
-            // Check if it's an alias first
-            let expansion = alias.expand("");
-            format!("{}: aliased to {}", command, expansion)
-        } else {
-            // Map commands to their simulated paths
-            match command {
-                // Shell builtins
-                "cd" | "pwd" | "echo" | "history" => format!("{}: shell builtin", command),
-                
-                // External commands (simulated paths)
-                "help" | "ls" | "cat" | "clear" | "cp" | "date" | "mines" | "mkdir" | "mv" | "rm" | "touch" | "which" | "whoami" | "neofetch" | "uptime" | "ps" | "kill" => {
-                    format!("/usr/bin/{}", command)
-                }
-                
-                // Unknown command
-                _ => format!("{} not found", command),
-            }
-        }
-    }
-
-    fn handle_date(&self, args: Vec<&str>) -> CommandRes {
-        use chrono::prelude::*;
-        
-        let now = Local::now();
-        
-        if args.is_empty() {
-            // Default format: Wed Dec 25 14:30:15 PST 2024
-            let formatted = now.format("%a %b %d %H:%M:%S %Z %Y").to_string();
-            return CommandRes::Output(Arc::new(move || formatted.clone().into_any()));
-        }
-        
-        if args.len() > 1 {
-            return CommandRes::Err(Arc::new(move || "date: too many arguments".into_any()));
-        }
-        
-        let format_str = args[0].trim_matches('"');
-        
-        if !format_str.starts_with('+') {
-            return CommandRes::Err(Arc::new(move || "date: invalid format (must start with +)".into_any()));
-        }
-        
-        let format_str = &format_str[1..]; // Remove the + prefix
-        
-        // Handle common format strings
-        let result = match format_str {
-            "%Y-%m-%d" => now.format("%Y-%m-%d").to_string(),
-            "%H:%M:%S" => now.format("%H:%M:%S").to_string(),
-            "%Y-%m-%d %H:%M:%S" => now.format("%Y-%m-%d %H:%M:%S").to_string(),
-            "%Y" => now.format("%Y").to_string(),
-            "%m" => now.format("%m").to_string(),
-            "%d" => now.format("%d").to_string(),
-            "%H" => now.format("%H").to_string(),
-            "%M" => now.format("%M").to_string(),
-            "%S" => now.format("%S").to_string(),
-            _ => {
-                // Try to parse as a general format string
-                let formatted = now.format(format_str).to_string();
-                formatted
-            }
-        };
-        
-        CommandRes::Output(Arc::new(move || result.clone().into_any()))
-    }
-
-    fn handle_uptime(&self) -> CommandRes {
-        use chrono::prelude::*;
-        
-        let now = Local::now();
-        let current_time = now.format("%H:%M:%S").to_string();
-        
-        // Use the actual build time as the start point for uptime
-        let build_time_str = env!("BUILD_TIME");
-        let build_time = match DateTime::parse_from_rfc3339(build_time_str) {
-            Ok(dt) => dt.with_timezone(&Local),
-            Err(_) => {
-                // Fallback to a reasonable default if parsing fails
-                now - chrono::Duration::days(42) - chrono::Duration::hours(13) - chrono::Duration::minutes(37)
-            }
-        };
-        
-        let uptime_duration = now.signed_duration_since(build_time);
-        let uptime_days = uptime_duration.num_days();
-        let uptime_hours = uptime_duration.num_hours() % 24;
-        let uptime_minutes = uptime_duration.num_minutes() % 60;
-        
-        // Generate slightly varying load averages based on current time
-        let base_seed = (now.timestamp() / 300) as f64; // Change every 5 minutes
-        let load_1 = 0.08 + (base_seed * 0.001).sin() * 0.02;
-        let load_5 = 0.12 + (base_seed * 0.0015).cos() * 0.03;
-        let load_15 = 0.15 + (base_seed * 0.002).sin() * 0.02;
-        
-        let output = format!(
-            "{} up {} days, {}:{:02}, load average: {:.2}, {:.2}, {:.2}",
-            current_time,
-            uptime_days,
-            uptime_hours,
-            uptime_minutes,
-            load_1,
-            load_5,
-            load_15
-        );
-        
-        CommandRes::Output(Arc::new(move || output.clone().into_any()))
-    }
-
-    fn handle_ps(&self, args: Vec<&str>) -> CommandRes {
-        // Check for supported options
-        if args.len() > 1 {
-            return CommandRes::Err(Arc::new(move || "ps: too many arguments".into_any()));
-        }
-        
-        let detailed = if args.is_empty() {
-            false
-        } else if args[0] == "aux" {
-            true
-        } else {
-            let arg = args[0].to_string();
-            return CommandRes::Err(Arc::new(move || {
-                format!("ps: invalid argument -- '{arg}'\nUsage: ps [aux]").into_any()
-            }));
-        };
-
-        let processes = self.processes.clone();
-        let output = if detailed {
-            // Detailed format: USER PID %CPU %MEM COMMAND
-            let mut lines = vec!["USER       PID %CPU %MEM COMMAND".to_string()];
-            for process in processes {
-                lines.push(format!(
-                    "{:<8} {:>5} {:>4.1} {:>4.1} {}",
-                    process.user,
-                    process.pid,
-                    process.cpu_percent,
-                    process.mem_percent,
-                    process.command
-                ));
-            }
-            lines.join("\n")
-        } else {
-            // Basic format: PID COMMAND
-            let mut lines = vec!["  PID COMMAND".to_string()];
-            for process in processes {
-                lines.push(format!("{:>5} {}", process.pid, process.command));
-            }
-            lines.join("\n")
-        };
-
-        CommandRes::Output(Arc::new(move || output.clone().into_any()))
-    }
-
-    fn handle_kill(&self, args: Vec<&str>) -> CommandRes {
-        if args.is_empty() {
-            return CommandRes::Err(Arc::new(move || "kill: not enough arguments".into_any()));
-        }
-
-        // Handle signal arguments
-        let pid_str = if args.len() == 2 {
-            let signal_arg = args[0];
-            if signal_arg == "-9" {
-                args[1]
-            } else if signal_arg.starts_with("-") {
-                let signal_name = &signal_arg[1..];
-                if signal_name.chars().all(|c| c.is_ascii_alphabetic()) {
-                    let signal_name = signal_name.to_uppercase();
-                    return CommandRes::Err(Arc::new(move || {
-                        format!("kill: unknown signal: SIG{}", signal_name).into_any()
-                    }));
-                } else {
-                    return CommandRes::Err(Arc::new(move || "kill: usage: kill [-n signum] pid".into_any()));
-                }
-            } else {
-                return CommandRes::Err(Arc::new(move || "kill: usage: kill [-n signum] pid".into_any()));
-            }
-        } else if args.len() == 1 {
-            args[0]
-        } else {
-            return CommandRes::Err(Arc::new(move || "kill: usage: kill [-n signum] pid".into_any()));
-        };
-
-        let pid = match pid_str.parse::<u32>() {
-            Ok(p) => p,
-            Err(_) => {
-                let pid_str = pid_str.to_string();
-                return CommandRes::Err(Arc::new(move || format!("kill: illegal pid: {pid_str}").into_any()));
-            }
-        };
-
-        // Check if process exists
-        let process_exists = self.get_process_by_pid(pid).is_some();
-        
-        if !process_exists {
-            return CommandRes::Err(Arc::new(move || format!("kill: kill {pid} failed: no such process").into_any()));
-        }
-
-        // Handle special PID 42 with easter egg
-        if pid == 42 {
-            let message = "Answer to everything terminated\nkill: kill 42 failed: operation not permitted";
-            return CommandRes::Err(Arc::new(move || message.into_any()));
-        }
-
-        // All core services show permission denied
-        let core_services = vec![1, 42, 99, 128, 256];
-        if core_services.contains(&pid) {
-            return CommandRes::Err(Arc::new(move || format!("kill: kill {pid} failed: operation not permitted").into_any()));
-        }
-
-        // This shouldn't be reached with our current process list, but included for completeness
-        CommandRes::Err(Arc::new(move || format!("kill: kill {pid} failed: operation not permitted").into_any()))
-    }
-
     fn tab_opts(&self, path: &str, target_path: &str) -> Vec<String> {
         let no_prefix = target_path.ends_with("/") || target_path.is_empty();
         let target_path = path_target_to_target_path(path, target_path, true);
@@ -1079,424 +891,7 @@ This version of rm only supports option 'r'"#
     }
 }
 
-fn parse_multitarget(args: Vec<&str>) -> (Vec<char>, Vec<&str>) {
-    args.into_iter().fold(
-        (Vec::<char>::new(), Vec::<&str>::new()),
-        |(mut options, mut t), s| {
-            if s.starts_with("-") {
-                let mut opts = s.chars().filter(|c| *c != '-').collect::<Vec<char>>();
-                options.append(&mut opts);
-            } else {
-                t.push(s);
-            }
-            (options, t)
-        },
-    )
-}
 
-fn path_target_to_target_path(path: &str, target: &str, preserve_dot: bool) -> String {
-    let mut target = target;
-    let ends_with_dot = target.ends_with(".");
-    let mut parts = path.split("/").filter(|s| !s.is_empty()).collect::<Vec<_>>();
-    while target.starts_with("./") {
-        target = &target[2..];
-    }
-    if target.starts_with("/") {
-        parts = Vec::new();
-    }
-    if target == "~" || target.starts_with("~/") {
-        parts = Vec::new();
-        target = &target[1..];
-    }
-    while target.ends_with("/") {
-        target = &target[..target.len() - 1];
-    }
-    let mut target = target
-        .split("/")
-        .filter(|s| !s.is_empty() && *s != ".")
-        .collect::<VecDeque<_>>();
-    if ends_with_dot && preserve_dot {
-        target.push_back(".");
-    }
-    while !target.is_empty() {
-        let p = target.pop_front().unwrap();
-        match p {
-            ".." if !parts.is_empty() => {
-                let _ = parts.pop();
-            }
-            ".." => {}
-            other => parts.push(other),
-        }
-    }
-    format!("/{}", parts.join("/"))
-}
-
-#[component]
-fn LsView(items: Vec<String>, base: String) -> impl IntoView {
-    let dir_class = "text-blue";
-    let ex_class = "text-green";
-    let item_clone = items.clone();
-    let render_func = {
-        let base = base.to_owned();
-        move |s: String| {
-            if s.ends_with("/") {
-                let s = s[..s.len()-1].to_string();
-                let base = if base == "/" {
-                    ""
-                } else {
-                    &base
-                };
-                let href = if s == "." {
-                    base.to_string()
-                } else {
-                    format!("{}/{}", base.to_owned(), s)
-                };
-                // note - adding extra space because trimming trailing '/'
-                EitherOf3::A(view! {
-                    <A href=href attr:class=dir_class>
-                        {s}
-                    </A>
-                    " "
-                })
-            } else if s.ends_with("*") {
-                let s = s[..s.len()-1].to_string();
-                // note - adding extra space because trimming trailing '*'
-                EitherOf3::B(view! {
-                    <span class=ex_class>{s}</span>
-                    " "
-                })
-            } else {
-                EitherOf3::C(view! { <span>{s}</span> })
-            }.into_any()
-        }
-    };
-    view! {
-        <div>
-            <ColumnarView items=item_clone render_func />
-        </div>
-    }
-}
-
-fn num_rows(num_items: usize, cols: usize) -> usize {
-    let items_per_row = num_items / cols;
-    if num_items % cols > 0 {
-        items_per_row + 1
-    } else {items_per_row}
-}
-
-#[component]
-pub fn ColumnarView<F>(items: Vec<String>, render_func: F) -> impl IntoView 
-where
-    F: Fn(String) -> AnyView + 'static
-{
-    let available_space = window().inner_width().expect("should be able to get window width").as_f64().expect("window width should be a number").round() as usize - TERMINAL_MARGINS;
-    let available_space = available_space / CHAR_WIDTH;
-    let total_len = items.iter().map(|s| s.len() + 2).sum::<usize>();
-    if total_len < available_space {
-        return view! {
-            {items
-                .into_iter()
-                .map(|s| {
-                    view! {
-                        {render_func(s)}
-                        "  "
-                    }
-                })
-                .collect_view()}
-        }.into_any();
-    }
-    let max_cols = 10.min(items.len());
-    let mut cols = 1;
-    for n in 0..max_cols {
-        let n = max_cols - n;
-        let per_col = num_rows(items.len(), n);
-        let total_len = items.chunks(per_col).map(|v| v.iter().map(|s| s.len() +2).max().expect("there should be a max len for each column")).sum::<usize>();
-        if total_len < available_space {
-            cols = n;
-            break;
-        }
-    }
-    let rows = num_rows(items.len(), cols);
-    let item_cols = items.chunks(rows).map(|x| x.to_vec()).collect::<Vec<Vec<String>>>();
-    let col_lens = item_cols.iter().map(|v| v.iter().map(|s| s.len() +2).max().expect("there should be a max len for each column")).collect::<Vec<_>>();
-    let views = (0..rows).map(|row| 
-        view! {
-            <div>
-                {item_cols
-                    .iter()
-                    .zip(col_lens.iter())
-                    .filter(|(v, _)| row < v.len())
-                    .map(|(v, l)| (&v[row], l))
-                    .map(|(s, l)| {
-                        let fill = l - s.len();
-                        view! {
-                            {render_func(s.to_string())}
-                            {" ".repeat(fill)}
-                        }
-                    })
-                    .collect_view()}
-            </div>
-        }
-    ).collect::<Vec<_>>();
-    view! { {views} }.into_any()
-}
-
-fn blog_post_exists(name: &str, blog_posts: &[String]) -> bool {
-    let name = if let Some(stripped) = name.strip_prefix("/blog/") {
-        stripped
-    } else {
-        name
-    };
-    blog_posts.iter().any(|s| *s == name)
-}
-
-#[derive(Debug, Clone)]
-enum Dir {
-    Base,
-    Blog,
-    CV,
-    BlogPost(String),
-}
-
-impl Dir {
-    fn contents(&self, blog_posts: &[String], all: bool) -> Vec<String> {
-        let mut common = if all {
-            vec!["./".to_string(), "../".to_string(), "nav.rs*".to_string()]
-        } else {
-            vec!["nav.rs*".to_string()]
-        };
-        match self {
-            Dir::Base => {
-                let mut items = vec!["blog/".to_string(), "cv/".to_string(), "mines.sh*".to_string(), "thanks.txt".to_string()];
-                items.append(&mut common);
-                items.sort();
-                if all {
-                    // './' should come before '../'
-                    items.swap(0,1);
-                }
-                items
-            }
-            Dir::Blog => {
-                let mut posts = blog_posts.iter().map(|bp| format!("{bp}/")).collect::<Vec<_>>();
-                posts.append(&mut common);
-                posts.sort();
-                if all {
-                    // './' should come before '../'
-                    posts.swap(0,1);
-                }
-                posts
-            },
-            Dir::CV => common,
-            Dir::BlogPost(_) => common,
-        }
-    }
-
-    fn base(&self) -> String {
-        match self {
-            Dir::Base => "/".into(),
-            Dir::Blog => "/blog".into(),
-            Dir::CV => "/cv".into(),
-            Dir::BlogPost(s) => format!("/blog/{s}"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-enum File {
-    MinesSh,
-    ThanksTxt,
-    Nav(String)
-}
-
-impl File {
-    fn name(&self) -> &'static str {
-        match self {
-            File::MinesSh => "mines.sh",
-            File::ThanksTxt => "thanks.txt",
-            File::Nav(_) => "nav.rs",
-        }
-    }
-
-    fn contents(&self) -> String {
-        match self {
-            File::MinesSh => MINES_SH.to_string(),
-            File::ThanksTxt => THANKS_TXT.to_string(),
-            File::Nav(s) => {
-                let s = if s.is_empty() {"/"} else{s};
-                format!(r#"use leptos::prelude::*;
-use leptos_router::{{hooks::use_navigate, UseNavigateOptions}};
-
-func main() {{
-    Effect::new((_) => {{
-        let navigate = use_navigate();
-        navigate("{s}", UseNavigateOptions::default);
-    }})
-}}
-"#)
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-enum Target {
-    Dir(Dir),
-    File(File),
-    Invalid,
-}
-
-impl Target {
-    fn from_str(path: &str, blog_posts: &[String]) -> Self {
-        match path {
-            "/" => Self::Dir(Dir::Base),
-            "/blog" => Self::Dir(Dir::Blog),
-            "/cv" => Self::Dir(Dir::CV),
-            post if post.starts_with("/blog/") && blog_post_exists(post, blog_posts) => {
-                let blog_post_name = post.split("/").last().expect("all blog posts should contain a /");
-                Self::Dir(Dir::BlogPost(blog_post_name.to_string()))
-            }
-            "/mines.sh" => Self::File(File::MinesSh),
-            "/thanks.txt" => Self::File(File::ThanksTxt),
-            "/nav.rs" => Self::File(File::Nav("/".to_string())),
-            "/blog/nav.rs" | "/cv/nav.rs" => Self::File(File::Nav(path[..path.len() - LEN_OF_NAV].to_string())),
-            post_nav
-                if post_nav.starts_with("/blog/")
-                    && post_nav.ends_with("/nav.rs")
-                    && blog_post_exists(&post_nav[..post_nav.len() - LEN_OF_NAV], blog_posts) =>
-            {
-                Self::File(File::Nav(path[..path.len() - LEN_OF_NAV].to_string()))
-            }
-            _ => Self::Invalid,
-        }
-    }
-}
-
-pub enum CommandRes {
-    EmptyErr,
-    Err(ChildrenFn),
-    Redirect(String),
-    Output(ChildrenFn),
-    Nothing,
-}
-
-enum Command {
-    Help,
-    Pwd,
-    Ls,
-    Cd,
-    Cat,
-    Clear,
-    Cp,
-    Date,
-    Echo,
-    History,
-    Mines,
-    MkDir,
-    Mv,
-    Rm,
-    Neofetch,
-    Touch,
-    Which,
-    WhoAmI,
-    Sudo,
-    Uptime,
-    Ps,
-    Kill,
-    Unknown,
-}
-
-impl From<&str> for Command {
-    fn from(value: &str) -> Self {
-        match value {
-            "help" => Self::Help,
-            "pwd" => Self::Pwd,
-            "ls" => Self::Ls,
-            "cd" => Self::Cd,
-            "cat" => Self::Cat,
-            "clear" => Self::Clear,
-            "cp" => Self::Cp,
-            "date" => Self::Date,
-            "echo" => Self::Echo,
-            "history" => Self::History,
-            "mines" => Self::Mines,
-            "mkdir" => Self::MkDir,
-            "mv" => Self::Mv,
-            "rm" => Self::Rm,
-            "touch" => Self::Touch,
-            "which" => Self::Which,
-            "whoami" => Self::WhoAmI,
-            "neofetch" => Self::Neofetch,
-            "sudo" => Self::Sudo,
-            "uptime" => Self::Uptime,
-            "ps" => Self::Ps,
-            "kill" => Self::Kill,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-impl Command {
-    fn all() -> Vec<&'static str> {
-        vec!["help", "pwd", "ls", "cd", "cat", "clear", "cp", "date", "echo", "history", "mines", "mkdir", "mv", "rm", "touch", "which", "whoami", "neofetch", "uptime", "ps", "kill"]
-    }
-}
-
-#[derive(Debug, Clone)]
-enum CommandAlias {
-    Ll,
-    La,
-    H,
-}
-
-impl CommandAlias {
-    fn all() -> Vec<CommandAlias> {
-        vec![CommandAlias::Ll, CommandAlias::La, CommandAlias::H]
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            CommandAlias::Ll => "ll",
-            CommandAlias::La => "la", 
-            CommandAlias::H => "h",
-        }
-    }
-
-    fn expand(&self, args: &str) -> String {
-        match self {
-            CommandAlias::Ll => {
-                if args.is_empty() {
-                    "ls -la".to_string()
-                } else {
-                    format!("ls -la{}", args)
-                }
-            }
-            CommandAlias::La => {
-                if args.is_empty() {
-                    "ls -a".to_string()
-                } else {
-                    format!("ls -a{}", args)
-                }
-            }
-            CommandAlias::H => {
-                if args.is_empty() {
-                    "history".to_string()
-                } else {
-                    format!("history{}", args)
-                }
-            }
-        }
-    }
-
-
-    fn from_str(s: &str) -> Option<CommandAlias> {
-        match s {
-            "ll" => Some(CommandAlias::Ll),
-            "la" => Some(CommandAlias::La),
-            "h" => Some(CommandAlias::H),
-            _ => None,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -1766,30 +1161,6 @@ mod tests {
             CommandRes::Err(_) => {}, // Expected
             _ => panic!("Expected error for kill with invalid PID"),
         }
-    }
-
-    #[test]
-    fn test_process_system() {
-        let terminal = create_test_terminal();
-        
-        // Test that processes are initialized
-        assert_eq!(terminal.processes.len(), 5);
-        
-        // Test get_process_by_pid
-        assert!(terminal.get_process_by_pid(1).is_some());
-        assert!(terminal.get_process_by_pid(42).is_some());
-        assert!(terminal.get_process_by_pid(999).is_none());
-        
-        // Test process data
-        let process_1 = terminal.get_process_by_pid(1).unwrap();
-        assert_eq!(process_1.command, "leptos-server");
-        assert_eq!(process_1.user, "root");
-        assert_eq!(process_1.pid, 1);
-        
-        let process_42 = terminal.get_process_by_pid(42).unwrap();
-        assert_eq!(process_42.command, "blog-renderer");
-        assert_eq!(process_42.user, "app");
-        assert_eq!(process_42.pid, 42);
     }
 
     #[test]
