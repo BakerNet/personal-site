@@ -8,7 +8,7 @@ pub fn HomePage() -> impl IntoView {
     view! {
         <Title text="About Me" />
         <div class="max-w-6xl mx-auto page-content">
-            <section class="flex flex-col lg:flex-row justify-center items-center gap-4 lg:gap-8 lg:mt-8 xl:mt-16 section-content">
+            <section class="flex flex-col lg:flex-row justify-center items-center gap-4 lg:gap-8 lg:mt-8 section-content">
                 <div class="flex-shrink-0">
                     <Avatar />
                 </div>
@@ -17,24 +17,24 @@ pub fn HomePage() -> impl IntoView {
                 </div>
             </section>
             <h1 class="text-2xl my-8 text-center font-bold section-content">
-                "Hi, I'm Hans - Software Engineering Leader & Principal Architect."
+                "Hi, I'm Hans - Software Engineering Leader"
             </h1>
             <section class="flex flex-col lg:flex-row gap-8 lg:gap-12 section-content">
                 <div class="w-full lg:max-w-2xl">
                     <h2 class="text-xl font-bold my-8">"Professional Experience"</h2>
                     <p class="text-base mb-4 leading-relaxed">
-                        "8+ years building and scaling software at a top-tier platform serving " 
-                        <strong>"2+ billion monthly sessions"</strong> 
+                        "8+ years building and scaling software at a top-tier platform serving "
+                        <strong>"2+ billion monthly sessions"</strong>
                         " with petabyte-scale data infrastructure."
                     </p>
                     <p class="text-base mb-4 leading-relaxed">
-                        "My career journey: " 
+                        "My career journey: "
                         <span class="text-cyan">"Junior Engineer → Senior Engineer → Manager → Director → Principal Architect"</span>
                         ". I bring both deep technical expertise and proven leadership experience."
                     </p>
                     <p class="text-base mb-4 leading-relaxed">
                         "Core strengths: Full-stack development (Rust, Go, Python, TypeScript), system architecture, team leadership, and driving measurable business impact. I've led teams through "
-                        <strong>"32 consecutive months of user growth"</strong>
+                        <strong>"32 consecutive months of user and revenue growth"</strong>
                         " while maintaining engineering excellence."
                     </p>
                     <div class="bg-brightBlack/30 p-4 rounded-md border-l-4 border-purple mb-4">
@@ -44,7 +44,7 @@ pub fn HomePage() -> impl IntoView {
                         </p>
                     </div>
                     <p class="text-base mb-2">
-                        "Explore my experience: "<code>"cd /cv"</code> " or browse my projects: " <code>"ls /blog"</code>
+                        "Explore my experience: "<code>"cd /cv"</code> " or browse my musings: " <code>"ls /blog"</code>
                     </p>
                 </div>
                 <div class="w-full lg:max-w-2xl">
@@ -92,18 +92,18 @@ pub fn HomePage() -> impl IntoView {
                                 "📧 contact@hansbaker.com"
                             </button>
                             <div class="flex gap-3">
-                                <a 
-                                    href="https://linkedin.com/in/hansbaker" 
-                                    target="_blank" 
+                                <a
+                                    href="https://linkedin.com/in/hansbaker"
+                                    target="_blank"
                                     rel="noopener noreferrer"
                                     class="text-blue hover:text-brightBlue text-2xl"
                                     aria-label="LinkedIn Profile"
                                 >
                                     <i class="devicon-linkedin-plain"></i>
                                 </a>
-                                <a 
-                                    href="https://github.com/BakerNet" 
-                                    target="_blank" 
+                                <a
+                                    href="https://github.com/BakerNet"
+                                    target="_blank"
                                     rel="noopener noreferrer"
                                     class="text-white hover:text-brightWhite text-2xl"
                                     aria-label="GitHub Profile"

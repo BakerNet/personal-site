@@ -12,6 +12,7 @@ pub fn BlogWrapper() -> impl IntoView {
     let clicked = ArcTrigger::new();
     provide_context(clicked.clone());
     view! {
+        <Title text="Blog" />
         <div class="text-center mb-8">
             <h1 class="font-bold text-3xl lg:text-4xl mb-4 section-content">
                 <a href="/blog" on:click=move |_| clicked.notify() class="hover:text-purple transition-colors duration-200">
@@ -100,7 +101,7 @@ pub fn BlogHome() -> impl IntoView {
                         placeholder="Enter search pattern..."
                     />
                 </div>
-                <button 
+                <button
                     type="submit"
                     class="px-4 py-2 bg-cyan/20 hover:bg-cyan/30 text-cyan rounded-md border border-cyan/30 transition-all duration-200 whitespace-nowrap"
                 >

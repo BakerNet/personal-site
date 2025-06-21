@@ -217,6 +217,7 @@ pub fn Header() -> impl IntoView {
         if ev.ctrl_key() && ev.key() == "c" {
             handle_cmd(el.value(), true);
             el.set_value("");
+            set_current_input(String::new());
             set_hist_state(None);
             set_tab_state(None);
             return;
@@ -224,6 +225,7 @@ pub fn Header() -> impl IntoView {
         if ev.ctrl_key() && ev.key() == "l" {
             handle_cmd("clear".to_string(), false);
             el.set_value("");
+            set_current_input(String::new());
             set_hist_state(None);
             set_tab_state(None);
             return;
