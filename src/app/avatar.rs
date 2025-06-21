@@ -6,7 +6,7 @@ use super::ascii::{AVATAR_BLOCK, INFO_BLOCK};
 pub fn Avatar() -> impl IntoView {
     view! {
         <pre
-            class="text-sm min-[440px]:text-base xl:text-lg min-[440px]:leading-tight leading-tight xl:leading-tight"
+            class="text-sm sm:text-base leading-tight"
             inner_html=AVATAR_BLOCK.join("\n")
         ></pre>
     }
@@ -16,7 +16,7 @@ pub fn Avatar() -> impl IntoView {
 pub fn InfoBlock() -> impl IntoView {
     view! {
         <pre
-            class="text-base whitespace-pre-wrap xl:text-lg leading-tight xl:leading-tight"
+            class="text-base whitespace-pre-wrap leading-tight"
             inner_html=INFO_BLOCK.join("\n")
         ></pre>
     }

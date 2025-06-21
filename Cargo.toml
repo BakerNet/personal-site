@@ -33,6 +33,9 @@ dashmap = "6.1"
 regex = { version = "1.11", optional = true }
 rss = { version = "2.0", optional = true, features = ["atom"] }
 
+[build-dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+
 [features]
 hydrate = ["leptos/hydrate", "rust-embed/debug-embed"]
 ssr = [
@@ -71,8 +74,6 @@ panic = "abort"
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
 output-name = "personal-site"
-
-hash-files = true
 
 # The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
 site-root = "target/site"
