@@ -20,7 +20,7 @@ pub fn BlogWrapper() -> impl IntoView {
                 <a
                     href="https://hansbaker.com/rss.xml"
                     target="_blank"
-                    class="relative top-1 ml-4 text-orange hover:text-brightYellow transition-colors duration-200"
+                    class="relative top-1 ml-4 text-brightYellow hover:text-yellow transition-colors duration-200"
                     aria-label="RSS Feed"
                 >
                     <i class="extra-rss" />

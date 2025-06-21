@@ -197,11 +197,15 @@ ul li li:before {
 }
 
 /* Interactive elements and hover effects with better accessibility */
-a {
+a:not([class*="text-"]) {
     @apply transition-colors duration-200 ease-out text-cyan relative no-underline;
 }
 
-a:hover {
+a {
+    @apply transition-colors duration-200 ease-out relative no-underline;
+}
+
+a:not([class*="text-"]):hover {
     @apply text-brightCyan;
 }
 
