@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use leptos::prelude::*;
 
 use crate::app::terminal::command::{CommandRes, Executable};
 
@@ -70,15 +67,7 @@ impl Executable for PsCommand {
         };
 
         let output = self.get_processes(detailed);
-        let output_clone = output.clone();
-        CommandRes::new().with_stdout(
-            output,
-            if _is_output_tty {
-                Some(Arc::new(move || output_clone.clone().into_any()))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text(output)
     }
 
 }

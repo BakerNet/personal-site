@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use leptos::prelude::*;
 
 use super::command::{CommandAlias, CommandRes, Executable};
 use super::fs::{path_target_to_target_path, File, Target};
@@ -58,7 +55,7 @@ impl Executable for WhichCommand {
         path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        is_output_tty: bool,
+        _is_output_tty: bool,
     ) -> CommandRes {
         if args.is_empty() {
             return CommandRes::new()
@@ -79,15 +76,7 @@ impl Executable for WhichCommand {
             .collect();
 
         let output = results.join("\n");
-        let output_clone = output.clone();
-        let mut res = CommandRes::new().with_stdout(
-            output,
-            if is_output_tty {
-                Some(Arc::new(move || output_clone.clone().into_any()))
-            } else {
-                None
-            },
-        );
+        let mut res = CommandRes::new().with_stdout_text(output);
         if is_err {
             res = res.with_error();
         }

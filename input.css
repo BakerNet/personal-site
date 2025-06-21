@@ -262,9 +262,8 @@ input[type="text"]:focus-visible {
     display: inline-block;
     animation: cursor-blink 1s ease-in-out infinite;
     width: 0.6em;
-    height: 1.2em;
-    line-height: 1.2;
-    text-align: center;
+    height: 1.5em;
+    line-height: 1.5em;
     vertical-align: baseline;
 }
 

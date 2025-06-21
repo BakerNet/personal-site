@@ -40,7 +40,7 @@ pub fn HomePage() -> impl IntoView {
                     <div class="bg-brightBlack/30 p-4 rounded-md border-l-4 border-purple mb-4">
                         <p class="text-sm text-purple mb-2 font-medium">"💡 Always interested in exceptional opportunities"</p>
                         <p class="text-sm">
-                            "While I'm engaged in my current role, I'm always open to discussing truly compelling Principal/Staff Engineer or Technical Leadership positions."
+                            "While I'm engaged in my current role, I'm always open to discussing truly compelling Staff+ Engineering positions."
                         </p>
                     </div>
                     <p class="text-base mb-2">
@@ -67,7 +67,7 @@ pub fn HomePage() -> impl IntoView {
                         </ul>
                     </div>
                     <p class="text-base mb-2">
-                        "Fun fact: Competed internationally in yoyoing and trained with the USA Olympic Bobsled team. I bring the same dedication to excellence in engineering."
+                        "Fun facts: I've competed internationally in yoyoing and trained with the USA Olympic Bobsled team. I bring the same dedication to excellence in engineering."
                     </p>
                     <p class="text-base mb-2 text-muted">
                         "Try " <code>"mines"</code> " in the terminal for a quick game break!"

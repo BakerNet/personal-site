@@ -41,21 +41,6 @@ impl CommandRes {
         self
     }
 
-    /// Add stdout content
-    pub fn with_stdout(mut self, text: impl Into<String>, view: Option<ChildrenFn>) -> Self {
-        match &mut self {
-            Self::Output {
-                stdout_text,
-                stdout_view,
-                ..
-            } => {
-                *stdout_text = Some(text.into());
-                *stdout_view = view;
-            }
-            _ => {}
-        }
-        self
-    }
 
     /// Add stderr content (text only - Header handles view conversion)
     pub fn with_stderr(mut self, text: impl Into<String>) -> Self {

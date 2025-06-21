@@ -16,7 +16,13 @@ impl LsCommand {
 }
 
 impl Executable for LsCommand {
-    fn execute(&self, path: &str, args: Vec<&str>, _stdin: Option<&str>, is_output_tty: bool) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        is_output_tty: bool,
+    ) -> CommandRes {
         let mut all = false;
         let (options, mut target_paths) = parse_multitarget(args);
         let invalid = options.iter().find(|c| **c != 'a');
@@ -26,9 +32,7 @@ impl Executable for LsCommand {
                 r#"ls: invalid option -- '{c}'
 This version of ls only supports option 'a'"#
             );
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
         if !options.is_empty() {
             all = true;
@@ -36,19 +40,18 @@ This version of ls only supports option 'a'"#
         if target_paths.is_empty() {
             target_paths = vec![""];
         }
-        
+
         // Process targets and collect errors
         let mut stdout_parts = Vec::new();
         let mut stderr_parts = Vec::new();
         let mut targets = Vec::new();
         let mut has_error = false;
-        
+
         for (i, tp) in target_paths.iter().enumerate() {
             let target_string = tp.to_string();
             let target_path = path_target_to_target_path(path, tp, false);
             let target = Target::from_str(&target_path, &self.blog_posts);
 
-            
             match &target {
                 Target::Dir(d) => {
                     if target_paths.len() > 1 {
@@ -65,28 +68,30 @@ This version of ls only supports option 'a'"#
                 }
                 Target::Invalid => {
                     has_error = true;
-                    stderr_parts.push(format!("ls: cannot access '{target_string}': No such file or directory"));
+                    stderr_parts.push(format!(
+                        "ls: cannot access '{target_string}': No such file or directory"
+                    ));
                 }
             }
 
             targets.push((tp.to_string(), target));
         }
-        
+
         let stdout_text = stdout_parts.join("\n");
         let stderr_text = stderr_parts.join("\n");
-        
+
         let mut result = CommandRes::new();
-        
+
         if has_error {
             result = result.with_error();
         }
-        
+
         if !stdout_text.is_empty() {
-            let stdout_view = if is_output_tty {
+            if is_output_tty {
                 let posts = self.blog_posts.clone();
                 let is_multi = target_paths.len() > 1;
                 let all_captured = all;
-                Some(Arc::new(move || {
+                result = result.with_stdout_view(Arc::new(move || {
                     let mut all_views = Vec::new();
                     for (i, (tp, target)) in targets.iter().enumerate() {
                         if let Target::Dir(d) = target {
@@ -96,26 +101,28 @@ This version of ls only supports option 'a'"#
                                 }
                                 all_views.push(view! { {format!("{}:", tp)} <br/> }.into_any());
                             }
-                            all_views.push(LsView(LsViewProps {
-                                items: d.contents(&posts, all_captured),
-                                base: d.base(),
-                            }).into_any());
+                            all_views.push(
+                                LsView(LsViewProps {
+                                    items: d.contents(&posts, all_captured),
+                                    base: d.base(),
+                                })
+                                .into_any(),
+                            );
                         } else if let Target::File(f) = target {
                             all_views.push(view! { {f.name()} }.into_any());
                         }
                     }
                     view! { {all_views} }.into_any()
-                }) as Arc<dyn Fn() -> AnyView + Send + Sync>)
+                }))
             } else {
-                None
-            };
-            result = result.with_stdout(stdout_text, stdout_view);
+                result = result.with_stdout_text(stdout_text);
+            }
         }
-        
+
         if !stderr_text.is_empty() {
             result = result.with_stderr(stderr_text);
         }
-        
+
         result
     }
 }
@@ -131,7 +138,13 @@ impl CatCommand {
 }
 
 impl Executable for CatCommand {
-    fn execute(&self, path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let (options, targets) = parse_multitarget(args);
         if !options.is_empty() {
             let c = options[0].to_owned();
@@ -139,24 +152,22 @@ impl Executable for CatCommand {
                 r#"cat: invalid option -- '{c}'
 This version of cat doesn't support any options"#
             );
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
         if targets.is_empty() {
             return CommandRes::new().with_error();
         }
-        
+
         // Process targets and collect outputs
         let mut stdout_parts = Vec::new();
         let mut stderr_parts = Vec::new();
         let mut has_error = false;
-        
+
         for tp in targets.iter() {
             let target_string = tp.to_string();
             let target_path = path_target_to_target_path(path, tp, false);
             let target = Target::from_str(&target_path, &self.blog_posts);
-            
+
             match target {
                 Target::File(f) => {
                     stdout_parts.push(f.contents().to_string());
@@ -171,34 +182,25 @@ This version of cat doesn't support any options"#
                 }
             }
         }
-        
+
         let stdout_text = stdout_parts.join("");
         let stderr_text = stderr_parts.join("\n");
-        
+
         let mut result = CommandRes::new();
         if has_error {
             result = result.with_error();
         }
-        
+
         if !stdout_text.is_empty() {
-            let stdout_clone = stdout_text.clone();
-            result = result.with_stdout(
-                stdout_text,
-                if _is_output_tty {
-                    Some(Arc::new(move || stdout_clone.clone().into_any()))
-                } else {
-                    None
-                },
-            );
+            result = result.with_stdout_text(stdout_text);
         }
-        
+
         if !stderr_text.is_empty() {
             result = result.with_stderr(stderr_text);
         }
-        
+
         result
     }
-
 }
 
 pub struct CdCommand {
@@ -212,12 +214,16 @@ impl CdCommand {
 }
 
 impl Executable for CdCommand {
-    fn execute(&self, path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         if args.len() >= 2 {
             let error_msg = "cd: too many arguments";
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
         let target_path = if args.is_empty() { "/" } else { args[0] };
         let target_string = target_path.to_owned();
@@ -229,20 +235,15 @@ impl Executable for CdCommand {
         match target {
             Target::File(_) => {
                 let error_msg = format!("cd: not a directory: {target_string}");
-                CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg)
+                CommandRes::new().with_error().with_stderr(error_msg)
             }
             Target::Dir(_) => CommandRes::Redirect(target_path),
             Target::Invalid => {
                 let error_msg = format!("cd: no such file or directory: {target_string}");
-                CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg)
+                CommandRes::new().with_error().with_stderr(error_msg)
             }
         }
     }
-
 }
 
 pub struct TouchCommand {
@@ -256,42 +257,46 @@ impl TouchCommand {
 }
 
 impl Executable for TouchCommand {
-    fn execute(&self, path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let (_, targets) = parse_multitarget(args);
         if targets.is_empty() {
             return CommandRes::new()
                 .with_error()
                 .with_stderr("touch: missing operand");
         }
-        let targets = targets.into_iter().fold(
-            Vec::new(), 
-            |mut ts, tp| {
-                let target_string = tp.to_owned();
-                let tp = if tp.contains("/") {
-                    tp.rsplit_once("/").unwrap().0
-                } else {
-                    ""
-                };
-                let target_path = path_target_to_target_path(path, tp, false);
-                let target = Target::from_str(&target_path, &self.blog_posts);
-                ts.push((target_string, target));
-                ts
-            },
-        );
-        let error_messages = targets.iter().map(|(name, ts)| {
-            let base = format!("touch: cannot touch '{name}': ");
-            match ts {
-                Target::Dir(_) => base + "Permission denied",
-                Target::File(_) => base + "Not a directory",
-                Target::Invalid => base + "No such file or directory",
-            }
-        }).collect::<Vec<_>>().join("\n");
-        
-        CommandRes::new()
-            .with_error()
-            .with_stderr(error_messages)
-    }
+        let targets = targets.into_iter().fold(Vec::new(), |mut ts, tp| {
+            let target_string = tp.to_owned();
+            let tp = if tp.contains("/") {
+                tp.rsplit_once("/").unwrap().0
+            } else {
+                ""
+            };
+            let target_path = path_target_to_target_path(path, tp, false);
+            let target = Target::from_str(&target_path, &self.blog_posts);
+            ts.push((target_string, target));
+            ts
+        });
+        let error_messages = targets
+            .iter()
+            .map(|(name, ts)| {
+                let base = format!("touch: cannot touch '{name}': ");
+                match ts {
+                    Target::Dir(_) => base + "Permission denied",
+                    Target::File(_) => base + "Not a directory",
+                    Target::Invalid => base + "No such file or directory",
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
 
+        CommandRes::new().with_error().with_stderr(error_messages)
+    }
 }
 
 pub struct MkdirCommand {
@@ -305,42 +310,46 @@ impl MkdirCommand {
 }
 
 impl Executable for MkdirCommand {
-    fn execute(&self, path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let (_, targets) = parse_multitarget(args);
         if targets.is_empty() {
             return CommandRes::new()
                 .with_error()
                 .with_stderr("mkdir: missing operand");
         }
-        let targets = targets.into_iter().fold(
-            Vec::new(), 
-            |mut ts, tp| {
-                let target_string = tp.to_owned();
-                let tp = if tp.contains("/") {
-                    tp.rsplit_once("/").unwrap().0
-                } else {
-                    ""
-                };
-                let target_path = path_target_to_target_path(path, tp, false);
-                let target = Target::from_str(&target_path, &self.blog_posts);
-                ts.push((target_string, target));
-                ts
-            },
-        );
-        let error_messages = targets.iter().map(|(name, ts)| {
-            let base = format!("mkdir: cannot create directory '{name}': ");
-            match ts {
-                Target::Dir(_) => base + "Permission denied",
-                Target::File(_) => base + "Not a directory",
-                Target::Invalid => base + "No such file or directory",
-            }
-        }).collect::<Vec<_>>().join("\n");
-        
-        CommandRes::new()
-            .with_error()
-            .with_stderr(error_messages)
-    }
+        let targets = targets.into_iter().fold(Vec::new(), |mut ts, tp| {
+            let target_string = tp.to_owned();
+            let tp = if tp.contains("/") {
+                tp.rsplit_once("/").unwrap().0
+            } else {
+                ""
+            };
+            let target_path = path_target_to_target_path(path, tp, false);
+            let target = Target::from_str(&target_path, &self.blog_posts);
+            ts.push((target_string, target));
+            ts
+        });
+        let error_messages = targets
+            .iter()
+            .map(|(name, ts)| {
+                let base = format!("mkdir: cannot create directory '{name}': ");
+                match ts {
+                    Target::Dir(_) => base + "Permission denied",
+                    Target::File(_) => base + "Not a directory",
+                    Target::Invalid => base + "No such file or directory",
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
 
+        CommandRes::new().with_error().with_stderr(error_messages)
+    }
 }
 
 pub struct RmCommand {
@@ -354,37 +363,41 @@ impl RmCommand {
 }
 
 impl Executable for RmCommand {
-    fn execute(&self, path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let (_, targets) = parse_multitarget(args);
         if targets.is_empty() {
             return CommandRes::new()
                 .with_error()
                 .with_stderr("rm: missing operand");
         }
-        let targets = targets.into_iter().fold(
-            Vec::new(), 
-            |mut ts, tp| {
-                let target_string = tp.to_owned();
-                let target_path = path_target_to_target_path(path, tp, false);
-                let target = Target::from_str(&target_path, &self.blog_posts);
-                ts.push((target_string, target));
-                ts
-            },
-        );
-        let error_messages = targets.iter().map(|(name, ts)| {
-            let base = format!("rm: cannot remove '{name}': ");
-            match ts {
-                Target::Dir(_) => base + "Permission denied",
-                Target::File(_) => base + "Permission denied",
-                Target::Invalid => base + "No such file or directory",
-            }
-        }).collect::<Vec<_>>().join("\n");
-        
-        CommandRes::new()
-            .with_error()
-            .with_stderr(error_messages)
-    }
+        let targets = targets.into_iter().fold(Vec::new(), |mut ts, tp| {
+            let target_string = tp.to_owned();
+            let target_path = path_target_to_target_path(path, tp, false);
+            let target = Target::from_str(&target_path, &self.blog_posts);
+            ts.push((target_string, target));
+            ts
+        });
+        let error_messages = targets
+            .iter()
+            .map(|(name, ts)| {
+                let base = format!("rm: cannot remove '{name}': ");
+                match ts {
+                    Target::Dir(_) => base + "Permission denied",
+                    Target::File(_) => base + "Permission denied",
+                    Target::Invalid => base + "No such file or directory",
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
 
+        CommandRes::new().with_error().with_stderr(error_messages)
+    }
 }
 
 pub struct CpCommand {
@@ -398,7 +411,13 @@ impl CpCommand {
 }
 
 impl Executable for CpCommand {
-    fn execute(&self, path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let (options, targets) = parse_multitarget(args);
         let mut recursive = false;
         let invalid = options.iter().find(|c| **c != 'r');
@@ -408,9 +427,7 @@ impl Executable for CpCommand {
                 r#"cp: invalid option -- '{c}'
 This version of cp only supports option 'r'"#
             );
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
         if !options.is_empty() {
             recursive = true;
@@ -423,13 +440,12 @@ This version of cp only supports option 'r'"#
         if targets.len() < 2 {
             let target = targets[0].to_owned();
             let error_msg = format!("cp: missing destination file operand after {target}");
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
-        let targets = targets.into_iter().enumerate().fold(
-            Vec::new(), 
-            |mut ts, (i, tp)| {
+        let targets = targets
+            .into_iter()
+            .enumerate()
+            .fold(Vec::new(), |mut ts, (i, tp)| {
                 let target_string = tp.to_owned();
                 let target_path = path_target_to_target_path(path, tp, false);
                 let full_target = Target::from_str(&target_path, &self.blog_posts);
@@ -442,29 +458,34 @@ This version of cp only supports option 'r'"#
                 let partial_target = Target::from_str(&target_path, &self.blog_posts);
                 ts.push((target_string, full_target, partial_target));
                 ts
-            },
-        );
+            });
         let target_filename = match (recursive, &targets[0].1) {
             (false, Target::Dir(_)) => {
-                let error_msg = format!("cp: -r not specified; omitting directory '{}'", targets[0].0);
-                return CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg);
-            },
-            (_ , Target::Invalid) => {
-                let error_msg = format!("cp: cannot stat '{}': No such file or directory", targets[0].0);
-                return CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg);
-            },
+                let error_msg = format!(
+                    "cp: -r not specified; omitting directory '{}'",
+                    targets[0].0
+                );
+                return CommandRes::new().with_error().with_stderr(error_msg);
+            }
+            (_, Target::Invalid) => {
+                let error_msg = format!(
+                    "cp: cannot stat '{}': No such file or directory",
+                    targets[0].0
+                );
+                return CommandRes::new().with_error().with_stderr(error_msg);
+            }
             _ => {
                 let target = &targets[0].0;
                 let target = if target.ends_with("/") {
-                    &target[..target.len()-1]
+                    &target[..target.len() - 1]
                 } else {
                     &target[..]
                 };
-                target.split("/").last().expect("Should have a last element").to_string()
+                target
+                    .split("/")
+                    .last()
+                    .expect("Should have a last element")
+                    .to_string()
             }
         };
         let error_messages = targets.iter().skip(1).map(|(name, full_ts, partial_ts)| {
@@ -489,12 +510,9 @@ This version of cp only supports option 'r'"#
                 }
             }
         }).collect::<Vec<_>>().join("\n");
-        
-        CommandRes::new()
-            .with_error()
-            .with_stderr(error_messages)
-    }
 
+        CommandRes::new().with_error().with_stderr(error_messages)
+    }
 }
 
 pub struct MvCommand {
@@ -508,7 +526,13 @@ impl MvCommand {
 }
 
 impl Executable for MvCommand {
-    fn execute(&self, path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let (options, targets) = parse_multitarget(args);
         let invalid = options.iter().find(|c| **c != 'f');
         if let Some(c) = invalid {
@@ -517,9 +541,7 @@ impl Executable for MvCommand {
                 r#"mv: invalid option -- '{c}'
 This version of mv only supports option 'f'"#
             );
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
         if targets.is_empty() {
             return CommandRes::new()
@@ -529,13 +551,12 @@ This version of mv only supports option 'f'"#
         if targets.len() < 2 {
             let target = targets[0].to_owned();
             let error_msg = format!("mv: missing destination file operand after {target}");
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
-        let targets = targets.into_iter().enumerate().fold(
-            Vec::new(), 
-            |mut ts, (i, tp)| {
+        let targets = targets
+            .into_iter()
+            .enumerate()
+            .fold(Vec::new(), |mut ts, (i, tp)| {
                 let target_string = tp.to_owned();
                 let target_path = path_target_to_target_path(path, tp, false);
                 let full_target = Target::from_str(&target_path, &self.blog_posts);
@@ -548,23 +569,27 @@ This version of mv only supports option 'f'"#
                 let partial_target = Target::from_str(&target_path, &self.blog_posts);
                 ts.push((target_string, full_target, partial_target));
                 ts
-            },
-        );
+            });
         let target_filename = match &targets[0].1 {
             Target::Invalid => {
-                let error_msg = format!("mv: cannot stat '{}': No such file or directory", targets[0].0);
-                return CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg);
-            },
+                let error_msg = format!(
+                    "mv: cannot stat '{}': No such file or directory",
+                    targets[0].0
+                );
+                return CommandRes::new().with_error().with_stderr(error_msg);
+            }
             _ => {
                 let target = &targets[0].0;
                 let target = if target.ends_with("/") {
-                    &target[..target.len()-1]
+                    &target[..target.len() - 1]
                 } else {
                     &target[..]
                 };
-                target.split("/").last().expect("Should have a last element").to_string()
+                target
+                    .split("/")
+                    .last()
+                    .expect("Should have a last element")
+                    .to_string()
             }
         };
         let error_messages = targets.iter().skip(1).map(|(name, full_ts, partial_ts)| {
@@ -589,10 +614,7 @@ This version of mv only supports option 'f'"#
                 }
             }
         }).collect::<Vec<_>>().join("\n");
-        
-        CommandRes::new()
-            .with_error()
-            .with_stderr(error_messages)
-    }
 
+        CommandRes::new().with_error().with_stderr(error_messages)
+    }
 }

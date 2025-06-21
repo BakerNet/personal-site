@@ -9,9 +9,8 @@ mod system_tools;
 pub use command::CommandRes;
 pub use components::ColumnarView;
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
-use leptos::prelude::*;
 
 use command::{Command, CommandAlias, Executable};
 use fs::{path_target_to_target_path, Target};
@@ -258,10 +257,7 @@ impl Terminal {
                 if args.len() == 1 && args[0] == "-c" {
                     self.history.clear();
                     return CommandRes::new()
-                        .with_stdout(
-                            "history cleared",
-                            Some(Arc::new(move || "history cleared".into_any())),
-                        );
+                        .with_stdout_text("history cleared");
                 }
                 // For non-clear history commands, update the command with current history before executing
                 HistoryCommand::new(&self.history).execute(path, args, None, true)

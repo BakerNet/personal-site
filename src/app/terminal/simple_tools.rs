@@ -27,15 +27,7 @@ impl Executable for HelpCommand {
         _stdin: Option<&str>,
         _is_output_tty: bool,
     ) -> CommandRes {
-        let text = HELP_TEXT.to_string();
-        CommandRes::new().with_stdout(
-            HELP_TEXT,
-            if _is_output_tty {
-                Some(Arc::new(move || text.clone().into_any()))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text(HELP_TEXT)
     }
 }
 
@@ -51,21 +43,10 @@ impl Executable for PwdCommand {
     ) -> CommandRes {
         if !args.is_empty() {
             let error_msg = "pwd: too many arguments";
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
 
-        let path_text = path.to_string();
-        let path_clone = path.to_owned();
-        CommandRes::new().with_stdout(
-            path_text,
-            if _is_output_tty {
-                Some(Arc::new(move || view! { {path_clone.clone()} }.into_any()))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text(path)
     }
 }
 
@@ -81,20 +62,10 @@ impl Executable for WhoAmICommand {
     ) -> CommandRes {
         if !args.is_empty() {
             let error_msg = "usage: whoami";
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
 
-        let output = "user";
-        CommandRes::new().with_stdout(
-            output,
-            if _is_output_tty {
-                Some(Arc::new(move || output.into_any()))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text("user")
     }
 }
 
@@ -139,18 +110,7 @@ impl Executable for NeofetchCommand {
         _is_output_tty: bool,
     ) -> CommandRes {
         let text = self.as_text();
-        let text_clone = text.clone();
-        CommandRes::new().with_stdout(
-            text,
-            if _is_output_tty {
-                Some(Arc::new(move || {
-                    view! { <div class="leading-tight" inner_html=text_clone.clone()></div> }
-                        .into_any()
-                }))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text(text)
     }
 }
 
@@ -179,9 +139,7 @@ impl Executable for SudoCommand {
         _is_output_tty: bool,
     ) -> CommandRes {
         let error_msg = "user is not in the sudoers file. This incident will be reported.";
-        CommandRes::new()
-            .with_error()
-            .with_stderr(error_msg)
+        CommandRes::new().with_error().with_stderr(error_msg)
     }
 }
 
@@ -204,20 +162,10 @@ impl Executable for EchoCommand {
         // Check for unsupported command substitution
         if message.contains("$(") {
             let error_msg = "echo: command substitution not supported";
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
 
-        let msg_clone = message.clone();
-        CommandRes::new().with_stdout(
-            message,
-            if _is_output_tty {
-                Some(Arc::new(move || msg_clone.clone().into_any()))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text(message)
     }
 }
 
@@ -263,9 +211,7 @@ impl Executable for DateCommand {
     ) -> CommandRes {
         if args.len() > 1 {
             let error_msg = "date: too many arguments";
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
 
         let format_str = if args.len() == 1 {
@@ -273,9 +219,7 @@ impl Executable for DateCommand {
 
             if !arg_str.starts_with('+') {
                 let error_msg = "date: invalid format (must start with +)";
-                return CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg);
+                return CommandRes::new().with_error().with_stderr(error_msg);
             }
             Some(&arg_str[1..]) // Remove the + prefix
         } else {
@@ -283,15 +227,7 @@ impl Executable for DateCommand {
         };
 
         let result = self.get_date(format_str);
-        let result_clone = result.clone();
-        CommandRes::new().with_stdout(
-            result,
-            if _is_output_tty {
-                Some(Arc::new(move || result_clone.clone().into_any()))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text(result)
     }
 }
 
@@ -340,15 +276,7 @@ impl Executable for UptimeCommand {
         _is_output_tty: bool,
     ) -> CommandRes {
         let output = self.get_uptime();
-        let output_clone = output.clone();
-        CommandRes::new().with_stdout(
-            output,
-            if _is_output_tty {
-                Some(Arc::new(move || output_clone.clone().into_any()))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text(output)
     }
 }
 
@@ -402,33 +330,15 @@ impl Executable for HistoryCommand<'_> {
                 let limited_history = &self.history[start_idx..];
 
                 let output = self.format_history(start_idx, limited_history);
-                let output_clone = output.clone();
-                return CommandRes::new().with_stdout(
-                    output,
-                    if _is_output_tty {
-                        Some(Arc::new(move || output_clone.clone().into_any()))
-                    } else {
-                        None
-                    },
-                );
+                return CommandRes::new().with_stdout_text(output);
             } else {
                 let error_msg = "history: numeric argument required";
-                return CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg);
+                return CommandRes::new().with_error().with_stderr(error_msg);
             }
         }
 
         // Show all history with line numbers
         let output = self.format_history(0, &self.history);
-        let output_clone = output.clone();
-        CommandRes::new().with_stdout(
-            output,
-            if _is_output_tty {
-                Some(Arc::new(move || output_clone.clone().into_any()))
-            } else {
-                None
-            },
-        )
+        CommandRes::new().with_stdout_text(output)
     }
 }

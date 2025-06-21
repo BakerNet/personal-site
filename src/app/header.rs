@@ -124,8 +124,8 @@ pub fn Header() -> impl IntoView {
             CommandRes::Output {
                 is_err,
                 stdout_view,
+                stdout_text,
                 stderr_text,
-                ..
             } => {
                 set_is_err(is_err);
                 // Convert stderr text to view with consistent error styling
@@ -140,8 +140,19 @@ pub fn Header() -> impl IntoView {
                         history_vec.push(error_view);
                     }
                 }
+                // Use stdout_view if available, otherwise convert stdout_text to view
                 if let Some(view) = stdout_view {
                     history_vec.push(view);
+                } else if let Some(stdout_msg) = stdout_text {
+                    if !stdout_msg.is_empty() {
+                        let text_view = Arc::new(move || {
+                            view! {
+                                <div class="whitespace-pre-wrap" inner_html={stdout_msg.clone()}></div>
+                            }
+                            .into_any()
+                        });
+                        history_vec.push(text_view);
+                    }
                 }
             }
             CommandRes::Redirect(s) => {
@@ -505,7 +516,7 @@ pub fn Header() -> impl IntoView {
                         Some(
                             view! {
                                 <div class="flex flex-col-reverse max-h-[480px] overflow-y-auto mb-2 p-3 rounded-md bg-black/20 border border-muted/30 backdrop-blur-sm">
-                                    <pre class="whitespace-pre-wrap terminal-output leading-relaxed">{views}</pre>
+                                    <pre class="whitespace-pre-wrap terminal-output leading-tight">{views}</pre>
                                 </div>
                             },
                         )
