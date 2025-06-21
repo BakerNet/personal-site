@@ -1,7 +1,3 @@
-use std::sync::Arc;
-
-use leptos::prelude::*;
-
 use super::command::{CommandRes, Executable};
 use crate::app::ascii::{AVATAR_BLOCK, INFO_BLOCK};
 use chrono::prelude::*;
@@ -338,7 +334,7 @@ impl Executable for HistoryCommand<'_> {
         }
 
         // Show all history with line numbers
-        let output = self.format_history(0, &self.history);
+        let output = self.format_history(0, self.history);
         CommandRes::new().with_stdout_text(output)
     }
 }

@@ -34,31 +34,22 @@ impl CommandRes {
 
     /// Mark this result as an error
     pub fn with_error(mut self) -> Self {
-        match &mut self {
-            Self::Output { is_err, .. } => *is_err = true,
-            _ => {}
-        }
+        if let Self::Output { is_err, .. } = &mut self { *is_err = true }
         self
     }
 
 
     /// Add stderr content (text only - Header handles view conversion)
     pub fn with_stderr(mut self, text: impl Into<String>) -> Self {
-        match &mut self {
-            Self::Output { stderr_text, .. } => {
-                *stderr_text = Some(text.into());
-            }
-            _ => {}
+        if let Self::Output { stderr_text, .. } = &mut self {
+            *stderr_text = Some(text.into());
         }
         self
     }
 
     /// Add only stdout text (no view)
     pub fn with_stdout_text(mut self, text: impl Into<String>) -> Self {
-        match &mut self {
-            Self::Output { stdout_text, .. } => *stdout_text = Some(text.into()),
-            _ => {}
-        }
+        if let Self::Output { stdout_text, .. } = &mut self { *stdout_text = Some(text.into()) }
         self
     }
 
@@ -69,10 +60,7 @@ impl CommandRes {
 
     /// Add only stdout view (no text)
     pub fn with_stdout_view(mut self, view: ChildrenFn) -> Self {
-        match &mut self {
-            Self::Output { stdout_view, .. } => *stdout_view = Some(view),
-            _ => {}
-        }
+        if let Self::Output { stdout_view, .. } = &mut self { *stdout_view = Some(view) }
         self
     }
 

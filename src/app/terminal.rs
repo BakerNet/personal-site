@@ -269,7 +269,7 @@ impl Terminal {
             }
             // All commands should now be handled by the trait system
             _ => {
-                panic!("Command not implemented in trait system: {}", cmd_text);
+                panic!("Command not implemented in trait system: {cmd_text}");
             }
         }
     }

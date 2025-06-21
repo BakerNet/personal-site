@@ -191,9 +191,6 @@ pub fn Header() -> impl IntoView {
     // Handle input changes for ghost text suggestions
     #[cfg(feature = "hydrate")]
     let input_handler = {
-        let set_current_input = set_current_input.clone();
-        let set_ghost_text = set_ghost_text.clone();
-        let cmd_history = cmd_history.clone();
         move |ev: Event| {
             let input_value = event_target_value(&ev);
             set_current_input.set(input_value.clone());
@@ -437,9 +434,6 @@ pub fn Header() -> impl IntoView {
     };
 
     let auto_comp_item = {
-        let tab_replace = tab_replace.clone();
-        let input_ref = input_ref.clone();
-        let set_tab_state = set_tab_state.clone();
         move |s: &str, active: bool| {
             let is_dir = s.ends_with("/");
             let is_ex = s.ends_with("*");
@@ -451,10 +445,10 @@ pub fn Header() -> impl IntoView {
             let s_completion = s.to_owned();
 
             let handle_click = {
-                let tab_replace = tab_replace.clone();
-                let input_ref = input_ref.clone();
-                let set_tab_state = set_tab_state.clone();
-                let set_current_input = set_current_input.clone();
+                let tab_replace = tab_replace;
+                let input_ref = input_ref;
+                let set_tab_state = set_tab_state;
+                let set_current_input = set_current_input;
                 move |_| {
                     if let Some(el) = input_ref.get_untracked() {
                         let current_val = el.value();

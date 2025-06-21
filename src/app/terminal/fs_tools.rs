@@ -99,7 +99,7 @@ This version of ls only supports option 'a'"#
                                 if i > 0 {
                                     all_views.push(view! { <br/> }.into_any());
                                 }
-                                all_views.push(view! { {format!("{}:", tp)} <br/> }.into_any());
+                                all_views.push(view! { {format!("{tp}:")} <br/> }.into_any());
                             }
                             all_views.push(
                                 LsView(LsViewProps {
