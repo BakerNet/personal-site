@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 
-use super::command::{CommandRes, Executable, PipelineRes};
+use super::command::{CommandRes, Executable};
 use crate::app::ascii::{AVATAR_BLOCK, INFO_BLOCK};
 use chrono::prelude::*;
 
@@ -20,61 +20,95 @@ The commands should feel familiar:
 pub struct HelpCommand;
 
 impl Executable for HelpCommand {
-    fn execute(&self, _path: &str, _args: Vec<&str>) -> CommandRes {
-        CommandRes::Output(Arc::new(move || HELP_TEXT.into_any()))
-    }
-
-    fn execute_pipeable(&self, _path: &str, _args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        PipelineRes::Output(HELP_TEXT.to_string())
+    fn execute(
+        &self,
+        _path: &str,
+        _args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
+        let text = HELP_TEXT.to_string();
+        CommandRes::new().with_stdout(
+            HELP_TEXT,
+            if _is_output_tty {
+                Some(Arc::new(move || text.clone().into_any()))
+            } else {
+                None
+            },
+        )
     }
 }
 
 pub struct PwdCommand;
 
 impl Executable for PwdCommand {
-    fn execute(&self, path: &str, args: Vec<&str>) -> CommandRes {
+    fn execute(
+        &self,
+        path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         if !args.is_empty() {
-            return CommandRes::Err(Arc::new(move || "pwd: too many arguments".into_any()));
+            let error_msg = "pwd: too many arguments";
+            return CommandRes::new()
+                .with_error()
+                .with_stderr(error_msg);
         }
-        let path = path.to_owned();
-        CommandRes::Output(Arc::new(move || view! { {path.clone()} }.into_any()))
-    }
 
-    fn execute_pipeable(&self, path: &str, args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        if !args.is_empty() {
-            return PipelineRes::Err("pwd: too many arguments".to_string());
-        }
-        PipelineRes::Output(path.to_string())
+        let path_text = path.to_string();
+        let path_clone = path.to_owned();
+        CommandRes::new().with_stdout(
+            path_text,
+            if _is_output_tty {
+                Some(Arc::new(move || view! { {path_clone.clone()} }.into_any()))
+            } else {
+                None
+            },
+        )
     }
 }
 
 pub struct WhoAmICommand;
 
 impl Executable for WhoAmICommand {
-    fn execute(&self, _path: &str, args: Vec<&str>) -> CommandRes {
+    fn execute(
+        &self,
+        _path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         if !args.is_empty() {
-            return CommandRes::Err(Arc::new(move || "useage: whoami".into_any()));
+            let error_msg = "usage: whoami";
+            return CommandRes::new()
+                .with_error()
+                .with_stderr(error_msg);
         }
-        CommandRes::Output(Arc::new(move || "user".into_any()))
-    }
 
-    fn execute_pipeable(&self, _path: &str, args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        if !args.is_empty() {
-            return PipelineRes::Err("useage: whoami".to_string());
-        }
-        PipelineRes::Output("user".to_string())
+        let output = "user";
+        CommandRes::new().with_stdout(
+            output,
+            if _is_output_tty {
+                Some(Arc::new(move || output.into_any()))
+            } else {
+                None
+            },
+        )
     }
 }
 
 pub struct ClearCommand;
 
 impl Executable for ClearCommand {
-    fn execute(&self, _path: &str, _args: Vec<&str>) -> CommandRes {
-        CommandRes::Nothing
-    }
-
-    fn execute_pipeable(&self, _path: &str, _args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        PipelineRes::Nothing
+    fn execute(
+        &self,
+        _path: &str,
+        _args: Vec<&str>,
+        _stdin: Option<&str>,
+        __is_output_tty: bool,
+    ) -> CommandRes {
+        CommandRes::new()
     }
 }
 
@@ -97,50 +131,70 @@ impl NeofetchCommand {
 }
 
 impl Executable for NeofetchCommand {
-    fn execute(&self, _path: &str, _args: Vec<&str>) -> CommandRes {
+    fn execute(
+        &self,
+        _path: &str,
+        _args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let text = self.as_text();
-        CommandRes::Output(Arc::new(move || {
-            view! { <div class="leading-tight" inner_html=text.clone()></div> }.into_any()
-        }))
-    }
-
-    fn execute_pipeable(&self, _path: &str, _args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        PipelineRes::Output(self.as_text())
+        let text_clone = text.clone();
+        CommandRes::new().with_stdout(
+            text,
+            if _is_output_tty {
+                Some(Arc::new(move || {
+                    view! { <div class="leading-tight" inner_html=text_clone.clone()></div> }
+                        .into_any()
+                }))
+            } else {
+                None
+            },
+        )
     }
 }
 
 pub struct MinesCommand;
 
 impl Executable for MinesCommand {
-    fn execute(&self, _path: &str, _args: Vec<&str>) -> CommandRes {
-        CommandRes::Redirect(MINES_URL.to_string())
-    }
-
-    fn execute_pipeable(&self, _path: &str, _args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        PipelineRes::Redirect(MINES_URL.to_string())
+    fn execute(
+        &self,
+        _path: &str,
+        _args: Vec<&str>,
+        _stdin: Option<&str>,
+        __is_output_tty: bool,
+    ) -> CommandRes {
+        CommandRes::redirect(MINES_URL.to_string())
     }
 }
 
 pub struct SudoCommand;
 
 impl Executable for SudoCommand {
-    fn execute(&self, _path: &str, _args: Vec<&str>) -> CommandRes {
-        CommandRes::Err(Arc::new(move || {
-            "user is not in the sudoers file. This incident will be reported.".into_any()
-        }))
-    }
-
-    fn execute_pipeable(&self, _path: &str, _args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        PipelineRes::Err(
-            "user is not in the sudoers file. This incident will be reported.".to_string(),
-        )
+    fn execute(
+        &self,
+        _path: &str,
+        _args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
+        let error_msg = "user is not in the sudoers file. This incident will be reported.";
+        CommandRes::new()
+            .with_error()
+            .with_stderr(error_msg)
     }
 }
 
 pub struct EchoCommand;
 
 impl Executable for EchoCommand {
-    fn execute(&self, _path: &str, args: Vec<&str>) -> CommandRes {
+    fn execute(
+        &self,
+        _path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let message = args
             .iter()
             .map(|s| s.replace("\"", ""))
@@ -149,27 +203,21 @@ impl Executable for EchoCommand {
 
         // Check for unsupported command substitution
         if message.contains("$(") {
-            return CommandRes::Err(Arc::new(move || {
-                "echo: command substitution not supported".into_any()
-            }));
+            let error_msg = "echo: command substitution not supported";
+            return CommandRes::new()
+                .with_error()
+                .with_stderr(error_msg);
         }
 
-        CommandRes::Output(Arc::new(move || message.clone().into_any()))
-    }
-
-    fn execute_pipeable(&self, _path: &str, args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        let message = args
-            .iter()
-            .map(|s| s.replace("\"", ""))
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        // Check for unsupported command substitution
-        if message.contains("$(") {
-            return PipelineRes::Err("echo: command substitution not supported".to_string());
-        }
-
-        PipelineRes::Output(message)
+        let msg_clone = message.clone();
+        CommandRes::new().with_stdout(
+            message,
+            if _is_output_tty {
+                Some(Arc::new(move || msg_clone.clone().into_any()))
+            } else {
+                None
+            },
+        )
     }
 }
 
@@ -206,18 +254,28 @@ impl DateCommand {
 }
 
 impl Executable for DateCommand {
-    fn execute(&self, _path: &str, args: Vec<&str>) -> CommandRes {
+    fn execute(
+        &self,
+        _path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         if args.len() > 1 {
-            return CommandRes::Err(Arc::new(move || "date: too many arguments".into_any()));
+            let error_msg = "date: too many arguments";
+            return CommandRes::new()
+                .with_error()
+                .with_stderr(error_msg);
         }
 
         let format_str = if args.len() == 1 {
             let arg_str = args[0].trim_matches('"');
 
             if !arg_str.starts_with('+') {
-                return CommandRes::Err(Arc::new(move || {
-                    "date: invalid format (must start with +)".into_any()
-                }));
+                let error_msg = "date: invalid format (must start with +)";
+                return CommandRes::new()
+                    .with_error()
+                    .with_stderr(error_msg);
             }
             Some(&arg_str[1..]) // Remove the + prefix
         } else {
@@ -225,27 +283,15 @@ impl Executable for DateCommand {
         };
 
         let result = self.get_date(format_str);
-        CommandRes::Output(Arc::new(move || result.clone().into_any()))
-    }
-
-    fn execute_pipeable(&self, _path: &str, args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        if args.len() > 1 {
-            return PipelineRes::Err("date: too many arguments".to_string());
-        }
-
-        let format_str = if args.len() == 1 {
-            let arg_str = args[0].trim_matches('"');
-
-            if !arg_str.starts_with('+') {
-                return PipelineRes::Err("date: invalid format (must start with +)".to_string());
-            }
-            Some(&arg_str[1..]) // Remove the + prefix
-        } else {
-            None
-        };
-
-        let result = self.get_date(format_str);
-        PipelineRes::Output(result)
+        let result_clone = result.clone();
+        CommandRes::new().with_stdout(
+            result,
+            if _is_output_tty {
+                Some(Arc::new(move || result_clone.clone().into_any()))
+            } else {
+                None
+            },
+        )
     }
 }
 
@@ -286,13 +332,103 @@ impl UptimeCommand {
 }
 
 impl Executable for UptimeCommand {
-    fn execute(&self, _path: &str, _args: Vec<&str>) -> CommandRes {
+    fn execute(
+        &self,
+        _path: &str,
+        _args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
         let output = self.get_uptime();
-        CommandRes::Output(Arc::new(move || output.clone().into_any()))
+        let output_clone = output.clone();
+        CommandRes::new().with_stdout(
+            output,
+            if _is_output_tty {
+                Some(Arc::new(move || output_clone.clone().into_any()))
+            } else {
+                None
+            },
+        )
+    }
+}
+
+pub struct HistoryCommand<'a> {
+    history: &'a [String],
+}
+
+impl<'a> HistoryCommand<'a> {
+    pub fn new(history: &'a [String]) -> Self {
+        Self { history }
     }
 
-    fn execute_pipeable(&self, _path: &str, _args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        let output = self.get_uptime();
-        PipelineRes::Output(output)
+    fn format_history(&self, start_idx: usize, history_slice: &[String]) -> String {
+        history_slice
+            .iter()
+            .enumerate()
+            .map(|(i, cmd)| format!("{:4}  {}", start_idx + i + 1, cmd))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+impl Executable for HistoryCommand<'_> {
+    fn execute(
+        &self,
+        _path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_output_tty: bool,
+    ) -> CommandRes {
+        if args.len() > 1 {
+            return CommandRes::new()
+                .with_error()
+                .with_stderr("history: too many arguments");
+        }
+
+        if let Some(arg) = args.first() {
+            // Note: The -c (clear) option is handled specially in Terminal::handle_command
+            // to maintain mutable access to the terminal's history Vec
+            if *arg == "-c" {
+                unreachable!("Clear history should be handled in Terminal::handle_command");
+            }
+
+            if let Ok(n) = arg.parse::<usize>() {
+                let count = n.min(self.history.len());
+                let start_idx = if self.history.len() > count {
+                    self.history.len() - count
+                } else {
+                    0
+                };
+                let limited_history = &self.history[start_idx..];
+
+                let output = self.format_history(start_idx, limited_history);
+                let output_clone = output.clone();
+                return CommandRes::new().with_stdout(
+                    output,
+                    if _is_output_tty {
+                        Some(Arc::new(move || output_clone.clone().into_any()))
+                    } else {
+                        None
+                    },
+                );
+            } else {
+                let error_msg = "history: numeric argument required";
+                return CommandRes::new()
+                    .with_error()
+                    .with_stderr(error_msg);
+            }
+        }
+
+        // Show all history with line numbers
+        let output = self.format_history(0, &self.history);
+        let output_clone = output.clone();
+        CommandRes::new().with_stdout(
+            output,
+            if _is_output_tty {
+                Some(Arc::new(move || output_clone.clone().into_any()))
+            } else {
+                None
+            },
+        )
     }
 }

@@ -32,7 +32,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <link rel="stylesheet" href="/css/blog.css" />
                 <MetaTags />
             </head>
-            <body class="flex flex-col font-mono min-h-screen bg-background text-foreground">
+            <body class="flex flex-col font-mono min-h-screen bg-background text-foreground overflow-x-hidden">
                 <App />
             </body>
         </html>
@@ -51,7 +51,7 @@ pub fn App() -> impl IntoView {
         // content for this welcome page
         <Router>
             <Header />
-            <main class="flex flex-col flex-1 w-full p-8 lg:p-12">
+            <main class="flex flex-col flex-1 w-full p-4 sm:p-6 lg:p-8 xl:p-12">
                 <Routes fallback=|| "Page not found.".into_view()>
                     <Route path=path!("/") view=HomePage />
                     <ParentRoute path=path!("/blog") view=BlogWrapper>
@@ -69,26 +69,46 @@ pub fn App() -> impl IntoView {
 #[component]
 fn Footer() -> impl IntoView {
     view! {
-        <footer class="border-t border-black">
-            <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4 leading-tight">
-                <div class="grid grid-cols-1 lg:grid-cols-3">
+        <footer class="border-t border-muted/30 bg-black/20 backdrop-blur-sm">
+            <div class="mx-auto px-4 sm:px-6 lg:px-8 py-6 leading-tight">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center">
                     <div class="order-first text-center lg:order-last lg:text-right">
                         <a
-                            class="text-2xl text-brightBlue mx-1"
+                            class="text-2xl text-brightBlue mx-2 hover:text-cyan transition-colors duration-200"
                             href="https://bsky.app/profile/hansbaker.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Bluesky Profile"
                         >
                             <i class="extra-bluesky" />
                         </a>
-                        <a class="text-2xl text-white mx-1" href="https://github.com/BakerNet">
+                        <a 
+                            class="text-2xl text-white mx-2 hover:text-brightWhite transition-colors duration-200" 
+                            href="https://github.com/BakerNet"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="GitHub Profile"
+                        >
                             <i class="devicon-github-plain" />
                         </a>
-                        <a class="text-2xl text-blue mx-1" href="https://linkedin.com/in/hansbaker">
+                        <a 
+                            class="text-2xl text-blue mx-2 hover:text-brightBlue transition-colors duration-200" 
+                            href="https://linkedin.com/in/hansbaker"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="LinkedIn Profile"
+                        >
                             <i class="devicon-linkedin-plain" />
                         </a>
                     </div>
-                    <div class="text-center">"© Hans Baker, 2024. All rights reserved"</div>
-                    <div class="order-last text-center lg:order-first lg:text-left">
-                        "Built with Rust & Leptos"
+                    <div class="text-center text-sm text-muted">
+                        "© 2024 Hans Baker. All rights reserved"
+                    </div>
+                    <div class="order-last text-center lg:order-first lg:text-left text-sm text-muted">
+                        "Built with " 
+                        <span class="text-orange font-medium">"Rust"</span> 
+                        " & " 
+                        <span class="text-green font-medium">"Leptos"</span>
                     </div>
                 </div>
             </div>

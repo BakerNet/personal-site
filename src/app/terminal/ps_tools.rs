@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 
-use crate::app::terminal::command::{CommandRes, Executable, PipelineRes};
+use crate::app::terminal::command::{CommandRes, Executable};
 
 #[derive(Debug, Clone)]
 pub struct Process {
@@ -49,10 +49,12 @@ impl PsCommand {
 }
 
 impl Executable for PsCommand {
-    fn execute(&self, _path: &str, args: Vec<&str>) -> CommandRes {
+    fn execute(&self, _path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
         // Check for supported options
         if args.len() > 1 {
-            return CommandRes::Err(Arc::new(move || "ps: too many arguments".into_any()));
+            return CommandRes::new()
+                .with_error()
+                .with_stderr("ps: too many arguments");
         }
 
         let detailed = if args.is_empty() {
@@ -61,34 +63,24 @@ impl Executable for PsCommand {
             true
         } else {
             let arg = args[0].to_string();
-            return CommandRes::Err(Arc::new(move || {
-                format!("ps: invalid argument -- '{arg}'\nUsage: ps [aux]").into_any()
-            }));
+            let error_msg = format!("ps: invalid argument -- '{arg}'\nUsage: ps [aux]");
+            return CommandRes::new()
+                .with_error()
+                .with_stderr(error_msg);
         };
 
         let output = self.get_processes(detailed);
-        CommandRes::Output(Arc::new(move || output.clone().into_any()))
+        let output_clone = output.clone();
+        CommandRes::new().with_stdout(
+            output,
+            if _is_output_tty {
+                Some(Arc::new(move || output_clone.clone().into_any()))
+            } else {
+                None
+            },
+        )
     }
 
-    fn execute_pipeable(&self, _path: &str, args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        // Check for supported options
-        if args.len() > 1 {
-            return PipelineRes::Err("ps: too many arguments".to_string());
-        }
-
-        let detailed = if args.is_empty() {
-            false
-        } else if args[0] == "aux" {
-            true
-        } else {
-            let arg = args[0].to_string();
-            return PipelineRes::Err(format!("ps: invalid argument -- '{arg}'\nUsage: ps [aux]"));
-        };
-
-        let output = self.get_processes(detailed);
-
-        PipelineRes::Output(output)
-    }
 }
 
 pub struct KillCommand {
@@ -111,22 +103,26 @@ static SIGS: [&str; 18] = [
 ];
 
 impl Executable for KillCommand {
-    fn execute(&self, _path: &str, args: Vec<&str>) -> CommandRes {
+    fn execute(&self, _path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
         if args.is_empty() {
-            return CommandRes::Err(Arc::new(move || "kill: not enough arguments".into_any()));
+            return CommandRes::new()
+                .with_error()
+                .with_stderr("kill: not enough arguments");
         }
 
         let pids = if args[0].starts_with("-") {
             let signal_name = args[0][1..].to_uppercase();
             if !SIGS.contains(&signal_name.as_str()) {
                 if signal_name.chars().all(|c| c.is_ascii_alphabetic()) {
-                    return CommandRes::Err(Arc::new(move || {
-                        format!("kill: unknown signal: SIG{signal_name}").into_any()
-                    }));
+                    let error_msg = format!("kill: unknown signal: SIG{signal_name}");
+                    return CommandRes::new()
+                        .with_error()
+                        .with_stderr(error_msg);
                 } else {
-                    return CommandRes::Err(Arc::new(move || {
-                        "kill: usage: kill [-n signum] pid".into_any()
-                    }));
+                    let error_msg = "kill: usage: kill [-n signum] pid";
+                    return CommandRes::new()
+                        .with_error()
+                        .with_stderr(error_msg);
                 }
             }
             &args[1..]
@@ -135,7 +131,9 @@ impl Executable for KillCommand {
         };
 
         if pids.is_empty() {
-            return CommandRes::Err(Arc::new(move || "kill: not enough arguments".into_any()));
+            return CommandRes::new()
+                .with_error()
+                .with_stderr("kill: not enough arguments");
         }
 
         // TODO - loop pids
@@ -145,9 +143,10 @@ impl Executable for KillCommand {
             Ok(p) => p,
             Err(_) => {
                 let pid_str = pid_str.to_string();
-                return CommandRes::Err(Arc::new(move || {
-                    format!("kill: illegal pid: {pid_str}").into_any()
-                }));
+                let error_msg = format!("kill: illegal pid: {pid_str}");
+                return CommandRes::new()
+                    .with_error()
+                    .with_stderr(error_msg);
             }
         };
 
@@ -155,33 +154,35 @@ impl Executable for KillCommand {
         let process_exists = self.get_process_by_pid(pid).is_some();
 
         if !process_exists {
-            return CommandRes::Err(Arc::new(move || {
-                format!("kill: kill {pid} failed: no such process").into_any()
-            }));
+            let error_msg = format!("kill: kill {pid} failed: no such process");
+            return CommandRes::new()
+                .with_error()
+                .with_stderr(error_msg);
         }
 
         // Handle special PID 42 with easter egg
         if pid == 42 {
             let message =
                 "Answer to everything terminated\nkill: kill 42 failed: operation not permitted";
-            return CommandRes::Err(Arc::new(move || message.into_any()));
+            return CommandRes::new()
+                .with_error()
+                .with_stderr(message);
         }
 
         // All core services show permission denied
         let core_services = [1, 42, 99, 128, 256];
         if core_services.contains(&pid) {
-            return CommandRes::Err(Arc::new(move || {
-                format!("kill: kill {pid} failed: operation not permitted").into_any()
-            }));
+            let error_msg = format!("kill: kill {pid} failed: operation not permitted");
+            return CommandRes::new()
+                .with_error()
+                .with_stderr(error_msg);
         }
 
         // This shouldn't be reached with our current process list, but included for completeness
-        CommandRes::Err(Arc::new(move || {
-            format!("kill: kill {pid} failed: operation not permitted").into_any()
-        }))
+        let error_msg = format!("kill: kill {pid} failed: operation not permitted");
+        CommandRes::new()
+            .with_error()
+            .with_stderr(error_msg)
     }
 
-    fn execute_pipeable(&self, _path: &str, _args: Vec<&str>, _stdin: &str) -> PipelineRes {
-        todo!()
-    }
 }

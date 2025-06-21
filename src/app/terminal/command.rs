@@ -1,42 +1,96 @@
 #![allow(dead_code)]
-use std::sync::Arc;
 
 use leptos::prelude::*;
 
-#[derive(Debug, Clone)]
-pub enum PipelineRes {
-    EmptyErr,
-    Err(String),
-    Redirect(String),
-    Output(String),
-    Nothing,
-}
-
-impl PipelineRes {
-    pub fn into_command_res(self) -> CommandRes {
-        match self {
-            PipelineRes::EmptyErr => CommandRes::EmptyErr,
-            PipelineRes::Err(msg) => CommandRes::Err(Arc::new(move || msg.clone().into_any())),
-            PipelineRes::Redirect(url) => CommandRes::Redirect(url),
-            PipelineRes::Output(text) => {
-                CommandRes::Output(Arc::new(move || text.clone().into_any()))
-            }
-            PipelineRes::Nothing => CommandRes::Nothing,
-        }
-    }
-}
-
 pub trait Executable: Send + Sync {
-    fn execute(&self, path: &str, args: Vec<&str>) -> CommandRes;
-    fn execute_pipeable(&self, path: &str, args: Vec<&str>, stdin: &str) -> PipelineRes;
+    fn execute(&self, path: &str, args: Vec<&str>, stdin: Option<&str>, is_output_tty: bool) -> CommandRes;
 }
 
 pub enum CommandRes {
-    EmptyErr,
-    Err(ChildrenFn),
+    Output {
+        is_err: bool,                     // true if command failed (non-zero exit code)
+        stdout_view: Option<ChildrenFn>,  // stdout content for display (only set if is_output_tty)
+        stdout_text: Option<String>,      // stdout for piping
+        stderr_text: Option<String>,      // stderr text (Header converts to view)
+    },
     Redirect(String),
-    Output(ChildrenFn),
-    Nothing,
+}
+
+impl CommandRes {
+    /// Create a new empty CommandRes with default values
+    pub fn new() -> Self {
+        Self::Output {
+            is_err: false,
+            stdout_view: None,
+            stdout_text: None,
+            stderr_text: None,
+        }
+    }
+
+    /// Create a redirect result
+    pub fn redirect(url: String) -> Self {
+        Self::Redirect(url)
+    }
+
+    /// Mark this result as an error
+    pub fn with_error(mut self) -> Self {
+        match &mut self {
+            Self::Output { is_err, .. } => *is_err = true,
+            _ => {}
+        }
+        self
+    }
+
+    /// Add stdout content
+    pub fn with_stdout(mut self, text: impl Into<String>, view: Option<ChildrenFn>) -> Self {
+        match &mut self {
+            Self::Output {
+                stdout_text,
+                stdout_view,
+                ..
+            } => {
+                *stdout_text = Some(text.into());
+                *stdout_view = view;
+            }
+            _ => {}
+        }
+        self
+    }
+
+    /// Add stderr content (text only - Header handles view conversion)
+    pub fn with_stderr(mut self, text: impl Into<String>) -> Self {
+        match &mut self {
+            Self::Output { stderr_text, .. } => {
+                *stderr_text = Some(text.into());
+            }
+            _ => {}
+        }
+        self
+    }
+
+    /// Add only stdout text (no view)
+    pub fn with_stdout_text(mut self, text: impl Into<String>) -> Self {
+        match &mut self {
+            Self::Output { stdout_text, .. } => *stdout_text = Some(text.into()),
+            _ => {}
+        }
+        self
+    }
+
+    /// Add only stderr text (alias for with_stderr for consistency)
+    pub fn with_stderr_text(self, text: impl Into<String>) -> Self {
+        self.with_stderr(text)
+    }
+
+    /// Add only stdout view (no text)
+    pub fn with_stdout_view(mut self, view: ChildrenFn) -> Self {
+        match &mut self {
+            Self::Output { stdout_view, .. } => *stdout_view = Some(view),
+            _ => {}
+        }
+        self
+    }
+
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
