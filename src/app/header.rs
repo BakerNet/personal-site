@@ -566,7 +566,7 @@ pub fn Header() -> impl IntoView {
                             handle_cmd(el.value(), false);
                             el.set_value("");
                             set_current_input.set(String::new());
-                            set_cursor_position.set(0); // Reset cursor position
+                            set_cursor_position.set(0);
                             set_ghost_text.set(None);
                         }
                     >
@@ -576,17 +576,21 @@ pub fn Header() -> impl IntoView {
                                 on:keydown=keydown_handler
                                 on:input=input_handler
                                 on:keyup=move |_| {
-                                    // Track cursor position on keyup (after arrow key movement)
                                     if let Some(input_el) = input_ref.get_untracked() {
-                                        if let Some(pos) = input_el.selection_start().unwrap_or(None) {
+                                        if let Some(pos) = input_el
+                                            .selection_start()
+                                            .unwrap_or(None)
+                                        {
                                             set_cursor_position.set(pos as usize);
                                         }
                                     }
                                 }
                                 on:click=move |_| {
-                                    // Track cursor position on click
                                     if let Some(input_el) = input_ref.get_untracked() {
-                                        if let Some(pos) = input_el.selection_start().unwrap_or(None) {
+                                        if let Some(pos) = input_el
+                                            .selection_start()
+                                            .unwrap_or(None)
+                                        {
                                             set_cursor_position.set(pos as usize);
                                         }
                                     }
@@ -606,8 +610,8 @@ pub fn Header() -> impl IntoView {
                                 {move || {
                                     let curr = current_input.get();
                                     let cursor_pos = cursor_position.get();
-
                                     if curr.is_empty() {
+
                                         // Empty input, show cursor at start
                                         view! {
                                             <span class="relative empty-placeholder">
@@ -615,11 +619,12 @@ pub fn Header() -> impl IntoView {
                                                     " "
                                                 </span>
                                             </span>
-                                        }.into_any()
+                                        }
+                                            .into_any()
                                     } else {
-                                        // Split text at cursor position
                                         let before_cursor = &curr[..cursor_pos.min(curr.len())];
                                         let after_cursor = &curr[cursor_pos.min(curr.len())..];
+                                        // Split text at cursor position
 
                                         view! {
                                             <>
@@ -635,19 +640,21 @@ pub fn Header() -> impl IntoView {
                                                     {after_cursor}
                                                 </span>
                                                 {move || {
-                                                    // Only show ghost text if cursor is at the end
                                                     if cursor_position.get() >= current_input.get().len() {
+                                                        // Only show ghost text if cursor is at the end
                                                         view! {
                                                             <span class="text-muted/70 font-mono whitespace-pre empty-placeholder">
                                                                 {ghost_text.get().unwrap_or_default()}
                                                             </span>
-                                                        }.into_any()
+                                                        }
+                                                            .into_any()
                                                     } else {
                                                         view! { <span></span> }.into_any()
                                                     }
                                                 }}
                                             </>
-                                        }.into_any()
+                                        }
+                                            .into_any()
                                     }
                                 }}
                             </div>
