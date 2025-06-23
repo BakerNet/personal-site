@@ -97,9 +97,15 @@ This version of ls only supports option 'a'"#
                         if let Target::Dir(d) = target {
                             if is_multi {
                                 if i > 0 {
-                                    all_views.push(view! { <br/> }.into_any());
+                                    all_views.push(view! { <br /> }.into_any());
                                 }
-                                all_views.push(view! { {format!("{tp}:")} <br/> }.into_any());
+                                all_views.push(
+                                    view! {
+                                        {format!("{tp}:")}
+                                        <br />
+                                    }
+                                    .into_any(),
+                                );
                             }
                             all_views.push(
                                 LsView(LsViewProps {
@@ -183,7 +189,7 @@ This version of cat doesn't support any options"#
             }
         }
 
-        let stdout_text = stdout_parts.join("");
+        let stdout_text = stdout_parts.join("\n");
         let stderr_text = stderr_parts.join("\n");
 
         let mut result = CommandRes::new();

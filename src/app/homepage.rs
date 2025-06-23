@@ -29,7 +29,9 @@ pub fn HomePage() -> impl IntoView {
                     </p>
                     <p class="text-base mb-4 leading-relaxed">
                         "My career journey: "
-                        <span class="text-cyan">"Junior Engineer → Senior Engineer → Manager → Director → Principal Architect"</span>
+                        <span class="text-cyan">
+                            "Junior Engineer → Senior Engineer → Manager → Director → Principal Architect"
+                        </span>
                         ". I bring both deep technical expertise and proven leadership experience."
                     </p>
                     <p class="text-base mb-4 leading-relaxed">
@@ -38,13 +40,16 @@ pub fn HomePage() -> impl IntoView {
                         " while maintaining engineering excellence."
                     </p>
                     <div class="bg-brightBlack/30 p-4 rounded-md border-l-4 border-purple mb-4">
-                        <p class="text-sm text-purple mb-2 font-medium">"💡 Always interested in exceptional opportunities"</p>
+                        <p class="text-sm text-purple mb-2 font-medium">
+                            "💡 Always interested in exceptional opportunities"
+                        </p>
                         <p class="text-sm">
                             "While I'm engaged in my current role, I'm always open to discussing truly compelling Staff+ Engineering positions."
                         </p>
                     </div>
                     <p class="text-base mb-2">
-                        "Explore my experience: "<code>"cd /cv"</code> " or browse my musings: " <code>"ls /blog"</code>
+                        "Explore my experience: "<code>"cd /cv"</code> " or browse my musings: "
+                        <code>"ls /blog"</code>
                     </p>
                 </div>
                 <div class="w-full lg:max-w-2xl">

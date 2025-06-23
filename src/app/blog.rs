@@ -15,7 +15,11 @@ pub fn BlogWrapper() -> impl IntoView {
         <Title text="Blog" />
         <div class="text-center mb-8">
             <h1 class="font-bold text-3xl lg:text-4xl mb-4 section-content">
-                <a href="/blog" on:click=move |_| clicked.notify() class="hover:text-purple transition-colors duration-200">
+                <a
+                    href="/blog"
+                    on:click=move |_| clicked.notify()
+                    class="hover:text-purple transition-colors duration-200"
+                >
                     "Hans Baker's Blog"
                 </a>
                 <a
@@ -224,13 +228,18 @@ pub fn BlogPage() -> impl IntoView {
                                     </span>
                                     <div class="flex flex-wrap gap-1">
                                         <span class="text-green font-medium">"🏷️ "</span>
-                                        {p.meta.tags.into_iter().map(|tag| {
-                                            view! {
-                                                <span class="bg-green/20 text-green px-2 py-1 rounded text-xs">
-                                                    {tag}
-                                                </span>
-                                            }
-                                        }).collect_view()}
+                                        {p
+                                            .meta
+                                            .tags
+                                            .into_iter()
+                                            .map(|tag| {
+                                                view! {
+                                                    <span class="bg-green/20 text-green px-2 py-1 rounded text-xs">
+                                                        {tag}
+                                                    </span>
+                                                }
+                                            })
+                                            .collect_view()}
                                     </div>
                                 </div>
                             </div>

@@ -82,8 +82,8 @@ fn Footer() -> impl IntoView {
                         >
                             <i class="extra-bluesky" />
                         </a>
-                        <a 
-                            class="text-2xl text-white mx-2 hover:text-brightWhite transition-colors duration-200" 
+                        <a
+                            class="text-2xl text-white mx-2 hover:text-brightWhite transition-colors duration-200"
                             href="https://github.com/BakerNet"
                             target="_blank"
                             rel="noopener noreferrer"
@@ -91,8 +91,8 @@ fn Footer() -> impl IntoView {
                         >
                             <i class="devicon-github-plain" />
                         </a>
-                        <a 
-                            class="text-2xl text-blue mx-2 hover:text-brightBlue transition-colors duration-200" 
+                        <a
+                            class="text-2xl text-blue mx-2 hover:text-brightBlue transition-colors duration-200"
                             href="https://linkedin.com/in/hansbaker"
                             target="_blank"
                             rel="noopener noreferrer"
@@ -102,12 +102,10 @@ fn Footer() -> impl IntoView {
                         </a>
                     </div>
                     <div class="text-center text-sm text-muted">
-                        "© 2024 Hans Baker. All rights reserved"
+                        "© 2024-2025 Hans Baker. All rights reserved"
                     </div>
                     <div class="order-last text-center lg:order-first lg:text-left text-sm text-muted">
-                        "Built with " 
-                        <span class="text-orange font-medium">"Rust"</span> 
-                        " & " 
+                        "Built with " <span class="text-orange font-medium">"Rust"</span> " & "
                         <span class="text-green font-medium">"Leptos"</span>
                     </div>
                 </div>

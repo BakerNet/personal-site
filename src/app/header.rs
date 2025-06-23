@@ -48,6 +48,7 @@ pub fn Header() -> impl IntoView {
     let (tab_state, set_tab_state) = signal(None::<TabState>);
     let (hist_state, set_hist_state) = signal(None::<HistState>);
     let (current_input, set_current_input) = signal(String::new());
+    let (cursor_position, set_cursor_position) = signal(0usize);
     let (ghost_text, set_ghost_text) = signal(None::<String>);
 
     #[cfg(feature = "hydrate")]
@@ -132,9 +133,7 @@ pub fn Header() -> impl IntoView {
                 if let Some(stderr_msg) = stderr_text {
                     if !stderr_msg.is_empty() {
                         let error_view = Arc::new(move || {
-                            view! {
-                                <div class="text-red whitespace-pre-wrap">{stderr_msg.clone()}</div>
-                            }
+                            view! { <div class="text-red whitespace-pre-wrap">{stderr_msg.clone()}</div> }
                             .into_any()
                         });
                         history_vec.push(error_view);
@@ -146,9 +145,7 @@ pub fn Header() -> impl IntoView {
                 } else if let Some(stdout_msg) = stdout_text {
                     if !stdout_msg.is_empty() {
                         let text_view = Arc::new(move || {
-                            view! {
-                                <div class="whitespace-pre-wrap" inner_html={stdout_msg.clone()}></div>
-                            }
+                            view! { <div class="whitespace-pre-wrap" inner_html=stdout_msg.clone()></div> }
                             .into_any()
                         });
                         history_vec.push(text_view);
@@ -195,6 +192,13 @@ pub fn Header() -> impl IntoView {
             let input_value = event_target_value(&ev);
             set_current_input.set(input_value.clone());
 
+            // Track cursor position
+            if let Some(input_el) = input_ref.get_untracked() {
+                if let Some(pos) = input_el.selection_start().unwrap_or(None) {
+                    set_cursor_position.set(pos as usize);
+                }
+            }
+
             if !input_value.is_empty() {
                 let history = cmd_history.get_untracked();
                 // Find the first command in history that starts with current input
@@ -226,6 +230,7 @@ pub fn Header() -> impl IntoView {
             handle_cmd(el.value(), true);
             el.set_value("");
             set_current_input(String::new());
+            set_cursor_position(0);
             set_hist_state(None);
             set_tab_state(None);
             return;
@@ -234,6 +239,7 @@ pub fn Header() -> impl IntoView {
             handle_cmd("clear".to_string(), false);
             el.set_value("");
             set_current_input(String::new());
+            set_cursor_position(0);
             set_hist_state(None);
             set_tab_state(None);
             return;
@@ -281,7 +287,8 @@ pub fn Header() -> impl IntoView {
                 let index = index - 1;
                 let new_val = &(*opts)[index];
                 el.set_value(new_val);
-                set_current_input.set(new_val.clone()); // Update cursor position
+                set_current_input.set(new_val.clone());
+                set_cursor_position.set(new_val.len()); // Set cursor to end of new value
                 set_hist_state(Some(HistState {
                     cursor,
                     opts,
@@ -308,13 +315,15 @@ pub fn Header() -> impl IntoView {
                     let val = el.value();
                     let truncated = &val[..cursor];
                     el.set_value(truncated);
-                    set_current_input.set(truncated.to_string()); // Update cursor position
+                    set_current_input.set(truncated.to_string());
+                    set_cursor_position.set(truncated.len()); // Set cursor to end of truncated value
                     set_hist_state(None);
                     return;
                 }
                 let new_val = &(*opts)[index];
                 el.set_value(new_val);
-                set_current_input.set(new_val.clone()); // Update cursor position
+                set_current_input.set(new_val.clone());
+                set_cursor_position.set(new_val.len()); // Set cursor to end of new value
                 set_hist_state(Some(HistState {
                     cursor,
                     opts,
@@ -322,14 +331,22 @@ pub fn Header() -> impl IntoView {
                 }));
             }
             "ArrowRight" => {
-                // Accept ghost text suggestion
+                // Accept ghost text suggestion only if cursor is at end
                 let ghost = ghost_text.get_untracked();
-                if ghost.is_some() && !is_tabbing && !is_cycling_hist {
+                let current_pos = cursor_position.get_untracked();
+                let current_input_val = current_input.get_untracked();
+
+                if ghost.is_some()
+                    && !is_tabbing
+                    && !is_cycling_hist
+                    && current_pos >= current_input_val.len()
+                {
                     ev.prevent_default();
                     let current_val = el.value();
                     let new_val = format!("{current_val}{}", ghost.unwrap());
                     el.set_value(&new_val);
-                    set_current_input.set(new_val);
+                    set_current_input.set(new_val.clone());
+                    set_cursor_position.set(new_val.len()); // Set cursor to end after accepting ghost text
                     set_ghost_text.set(None);
                 }
             }
@@ -358,7 +375,8 @@ pub fn Header() -> impl IntoView {
                     };
                     let new = tab_replace(&val[..cursor], &opts[new_index]);
                     el.set_value(&new);
-                    set_current_input.set(new); // Update cursor position
+                    set_current_input.set(new.clone());
+                    set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                     set_tab_state(Some(TabState {
                         cursor,
                         opts,
@@ -382,7 +400,8 @@ pub fn Header() -> impl IntoView {
                     if opts.len() == 1 {
                         let new = tab_replace(&val, &opts[0]);
                         el.set_value(&new);
-                        set_current_input.set(new); // Update cursor position
+                        set_current_input.set(new.clone());
+                        set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                         return;
                     }
                     let cursor = val.len();
@@ -390,7 +409,8 @@ pub fn Header() -> impl IntoView {
                         let i = opts.len() - 1;
                         let new = tab_replace(&val[..cursor], &opts[i]);
                         el.set_value(&new);
-                        set_current_input.set(new); // Update cursor position
+                        set_current_input.set(new.clone());
+                        set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                         Some(i)
                     } else {
                         None
@@ -486,9 +506,15 @@ pub fn Header() -> impl IntoView {
                             },
                         )
                     } else {
-                        EitherOf3::C(view! {
-                            <span class=if active { "font-medium" } else { "text-foreground" }>{s_display}</span>
-                        })
+                        EitherOf3::C(
+                            view! {
+                                <span class=if active {
+                                    "font-medium"
+                                } else {
+                                    "text-foreground"
+                                }>{s_display}</span>
+                            },
+                        )
                     }}
                 </span>
             }
@@ -510,7 +536,9 @@ pub fn Header() -> impl IntoView {
                         Some(
                             view! {
                                 <div class="flex flex-col-reverse max-h-[480px] overflow-y-auto mb-2 p-3 rounded-md bg-black/20 border border-muted/30 backdrop-blur-sm">
-                                    <pre class="whitespace-pre-wrap terminal-output leading-tight">{views}</pre>
+                                    <pre class="whitespace-pre-wrap terminal-output leading-tight">
+                                        {views}
+                                    </pre>
                                 </div>
                             },
                         )
@@ -538,6 +566,7 @@ pub fn Header() -> impl IntoView {
                             handle_cmd(el.value(), false);
                             el.set_value("");
                             set_current_input.set(String::new());
+                            set_cursor_position.set(0); // Reset cursor position
                             set_ghost_text.set(None);
                         }
                     >
@@ -546,36 +575,81 @@ pub fn Header() -> impl IntoView {
                                 node_ref=input_ref
                                 on:keydown=keydown_handler
                                 on:input=input_handler
+                                on:keyup=move |_| {
+                                    // Track cursor position on keyup (after arrow key movement)
+                                    if let Some(input_el) = input_ref.get_untracked() {
+                                        if let Some(pos) = input_el.selection_start().unwrap_or(None) {
+                                            set_cursor_position.set(pos as usize);
+                                        }
+                                    }
+                                }
+                                on:click=move |_| {
+                                    // Track cursor position on click
+                                    if let Some(input_el) = input_ref.get_untracked() {
+                                        if let Some(pos) = input_el.selection_start().unwrap_or(None) {
+                                            set_cursor_position.set(pos as usize);
+                                        }
+                                    }
+                                }
                                 type="text"
                                 placeholder="Type a command (try 'help')"
                                 autocapitalize="none"
                                 aria-label="Terminal command input"
                                 aria-describedby="terminal-help"
-                                class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-cyan bg-background text-foreground placeholder-muted transition-all duration-200 ease-out hover:border-subtle focus:border-cyan focus:shadow-lg focus:shadow-cyan/20 font-mono caret-transparent"
+                                class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-cyan bg-background text-foreground placeholder-muted transition-all duration-200 ease-out hover:border-subtle focus:border-cyan focus:shadow-lg focus:shadow-cyan/20 font-mono caret-transparent empty-placeholder"
                             />
                             <div id="terminal-help" class="sr-only">
                                 "Type terminal commands like 'help', 'ls', 'cd /blog', or 'neofetch'. Use Tab for autocomplete and arrow keys for history. Right arrow to accept suggestions."
                             </div>
-                            {/* Ghost text overlay and block cursor */}
+                            {}
                             <div class="absolute inset-y-0 left-0 px-4 py-2 pointer-events-none overflow-hidden flex items-center text-foreground terminal-overlay whitespace-nowrap">
                                 {move || {
                                     let curr = current_input.get();
+                                    let cursor_pos = cursor_position.get();
+
                                     if curr.is_empty() {
-                                        Either::Left(view!{<span></span>})
+                                        // Empty input, show cursor at start
+                                        view! {
+                                            <span class="relative empty-placeholder">
+                                                <span class="absolute terminal-block-cursor bg-cyan font-mono">
+                                                    " "
+                                                </span>
+                                            </span>
+                                        }.into_any()
                                     } else {
-                                        Either::Right(view!{<span class="invisible font-mono whitespace-pre">{current_input}</span>})
+                                        // Split text at cursor position
+                                        let before_cursor = &curr[..cursor_pos.min(curr.len())];
+                                        let after_cursor = &curr[cursor_pos.min(curr.len())..];
+
+                                        view! {
+                                            <>
+                                                <span class="invisible font-mono whitespace-pre empty-placeholder">
+                                                    {before_cursor}
+                                                </span>
+                                                <span class="relative empty-placeholder">
+                                                    <span class="absolute terminal-block-cursor bg-cyan font-mono">
+                                                        " "
+                                                    </span>
+                                                </span>
+                                                <span class="invisible font-mono whitespace-pre empty-placeholder">
+                                                    {after_cursor}
+                                                </span>
+                                                {move || {
+                                                    // Only show ghost text if cursor is at the end
+                                                    if cursor_position.get() >= current_input.get().len() {
+                                                        view! {
+                                                            <span class="text-muted/70 font-mono whitespace-pre empty-placeholder">
+                                                                {ghost_text.get().unwrap_or_default()}
+                                                            </span>
+                                                        }.into_any()
+                                                    } else {
+                                                        view! { <span></span> }.into_any()
+                                                    }
+                                                }}
+                                            </>
+                                        }.into_any()
                                     }
                                 }}
-                                <span class="relative">
-                                    {/* Block cursor positioned at end of typed text */}
-                                    <span class="absolute terminal-block-cursor bg-cyan font-mono">" "</span>
-                                    {/* Ghost text - appears after cursor */}
-                                    {move || {
-                                        view! {
-                                            <span class="text-muted/70 font-mono whitespace-pre empty-placeholder">{ghost_text.get().unwrap_or_default()}</span>
-                                        }
-                                    }}
-                                </span>
                             </div>
                             <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
                                 <span class="text-muted text-sm opacity-60 group-hover:opacity-80 transition-opacity duration-200">

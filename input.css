@@ -371,7 +371,7 @@ html {
 }
 
 @layer utilities {
-  .empty-placeholder:empty::before {
+  .empty-placeholder::before {
     content: '\200b'; /* zero-width space */
   }
 }
