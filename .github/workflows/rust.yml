@@ -50,4 +50,4 @@ jobs:
         cargo clippy --features=hydrate
     - name: Run formatter
       run: |
-        leptosfmt --check web game-ui
+        leptosfmt --check src
