@@ -10,6 +10,47 @@ mines
 "#;
 const THANKS_TXT: &str =
     "Thank you to my wife and my daughter for bringing immense joy to my life.";
+// TODO - actually implement HIST_SAVE_NO_DUPS and histsize 1000
+// TODO - implement ls -l
+const ZSHRC_CONTENT: &str = r#"# Simple zsh configuration
+unsetopt beep
+setopt HIST_SAVE_NO_DUPS
+
+# Basic completion
+autoload -Uz compinit
+compinit
+
+# plugins
+plugins = (zsh-autosuggestions, zsh-history-substring-search)
+
+# Aliases
+alias ll='ls -la'
+alias la='ls -a'
+alias h='history'
+
+# robbyrussell theme prompt
+# Arrow changes color based on exit status, directory in cyan, git status
+PROMPT='%(?:%{$fg_bold[green]%}➜ :%{$fg_bold[red]%}➜ )%{$fg[cyan]%}%c%{$reset_color%} $(git_prompt_info)'
+
+ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg_bold[blue]%}git:(%{$fg[red]%}"
+ZSH_THEME_GIT_PROMPT_SUFFIX="%{$reset_color%} "
+ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[blue]%}) %{$fg[yellow]%}✗"
+ZSH_THEME_GIT_PROMPT_CLEAN="%{$fg[blue]%})"
+
+# History settings
+HISTFILE=window.localStorage
+HISTSIZE=1000
+SAVEHIST=1000
+setopt SHARE_HISTORY
+setopt APPEND_HISTORY
+
+# zsh-history-substring-search configuration
+bindkey '^[[A' history-substring-search-up # or '\eOA'
+bindkey '^[[B' history-substring-search-down # or '\eOB'
+HISTORY_SUBSTRING_SEARCH_ENSURE_UNIQUE=1
+HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND=0
+HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND=0
+"#;
 
 pub fn parse_multitarget(args: Vec<&str>) -> (Vec<char>, Vec<&str>) {
     args.into_iter().fold(
@@ -129,6 +170,8 @@ impl Dir {
 pub enum File {
     MinesSh,
     ThanksTxt,
+    ZshRc,
+    ZshHistory,
     Nav(String),
 }
 
@@ -137,6 +180,7 @@ impl File {
         match self {
             File::MinesSh => "mines.sh",
             File::ThanksTxt => "thanks.txt",
+            File::ZshRc => ".zshrc"
             File::Nav(_) => "nav.rs",
         }
     }
@@ -145,6 +189,7 @@ impl File {
         match self {
             File::MinesSh => MINES_SH.to_string(),
             File::ThanksTxt => THANKS_TXT.to_string(),
+            File::ZshRc => ZSHRC_CONTENT.to_string(),
             File::Nav(s) => {
                 let s = if s.is_empty() { "/" } else { s };
                 format!(
