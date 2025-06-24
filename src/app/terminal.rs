@@ -1,6 +1,6 @@
 mod command;
 mod components;
-mod fs;
+pub mod fs;
 mod fs_tools;
 mod ps_tools;
 mod simple_tools;
@@ -9,8 +9,7 @@ mod system_tools;
 pub use command::CommandRes;
 pub use components::ColumnarView;
 
-use std::collections::HashMap;
-
+use std::collections::{HashMap, VecDeque};
 
 use command::{Command, CommandAlias, Executable};
 use fs::{path_target_to_target_path, Target};
@@ -24,16 +23,18 @@ use simple_tools::{
 };
 use system_tools::{UnknownCommand, WhichCommand};
 
+static HISTORY_SIZE: usize = 1000;
+
 pub struct Terminal {
     blog_posts: Vec<String>,
-    history: Vec<String>,
+    history: VecDeque<String>,
     env_vars: HashMap<String, String>,
     processes: Vec<Process>,
     commands: HashMap<Command, Box<dyn Executable>>,
 }
 
 impl Terminal {
-    pub fn new(blog_posts: &[String], history: Option<Vec<String>>) -> Self {
+    pub fn new(blog_posts: &[String], history: Option<VecDeque<String>>) -> Self {
         let history = history.unwrap_or_default();
         let mut env_vars = HashMap::new();
         env_vars.insert("USER".to_string(), "user".to_string());
@@ -57,7 +58,7 @@ impl Terminal {
     }
 
     #[cfg(feature = "hydrate")]
-    pub fn set_history(&mut self, history: Vec<String>) {
+    pub fn set_history(&mut self, history: VecDeque<String>) {
         self.history = history;
     }
 
@@ -169,12 +170,8 @@ impl Terminal {
     }
 
     #[cfg(feature = "hydrate")]
-    pub fn history(&self) -> Vec<String> {
-        if self.history.len() > 100 {
-            self.history[self.history.len() - 100..].to_vec()
-        } else {
-            self.history.clone()
-        }
+    pub fn history(&self) -> VecDeque<String> {
+        self.history.clone()
     }
 
     fn process_aliases(&self, input: &str) -> String {
@@ -222,7 +219,10 @@ impl Terminal {
         if input.trim().is_empty() {
             return CommandRes::new();
         }
-        self.history.push(input.to_string());
+        self.history.push_back(input.to_string());
+        if self.history.len() > HISTORY_SIZE {
+            self.history.pop_front();
+        }
 
         // Process command aliases first
         let aliased_input = self.process_aliases(input);
@@ -256,11 +256,11 @@ impl Terminal {
                 let args: Vec<&str> = parts.collect();
                 if args.len() == 1 && args[0] == "-c" {
                     self.history.clear();
-                    return CommandRes::new()
-                        .with_stdout_text("history cleared");
+                    return CommandRes::new().with_stdout_text("history cleared");
                 }
+                self.history.make_contiguous();
                 // For non-clear history commands, update the command with current history before executing
-                HistoryCommand::new(&self.history).execute(path, args, None, true)
+                HistoryCommand::new(&self.history.as_slices().0).execute(path, args, None, true)
             }
             Command::Unknown => {
                 let unknown_cmd =
@@ -276,17 +276,17 @@ impl Terminal {
 
     pub fn handle_start_hist(&self, input: &str) -> Vec<String> {
         if input.trim().is_empty() {
-            self.history.clone()
+            self.history.iter().cloned().collect()
         } else {
             self.history
                 .iter()
                 .filter(|s| s.starts_with(input))
-                .map(|s| s.to_string())
+                .cloned()
                 .collect()
         }
     }
 
-    pub fn handle_start_tab(&mut self, path: &str, input: &str) -> Vec<String> {
+    pub fn handle_start_tab(&mut self, path: &str, input: &str) -> Vec<fs::DirContentItem> {
         let mut parts = input.split_whitespace();
         let cmd_text = if let Some(word) = parts.next() {
             word
@@ -304,16 +304,12 @@ impl Terminal {
                 }
             }
             _ if parts.peek().is_none() && !input.ends_with(" ") => Vec::new(),
-            Command::Cd => self
-                .tab_opts(path, parts.last().unwrap_or_default())
-                .into_iter()
-                .filter(|s| s.ends_with("/"))
-                .collect(),
+            Command::Cd => self.tab_dirs(path, parts.last().unwrap_or_default()),
             _ => self.tab_opts(path, parts.last().unwrap_or_default()),
         }
     }
 
-    fn tab_opts(&self, path: &str, target_path: &str) -> Vec<String> {
+    fn tab_opts(&self, path: &str, target_path: &str) -> Vec<fs::DirContentItem> {
         let no_prefix = target_path.ends_with("/") || target_path.is_empty();
         let target_path = path_target_to_target_path(path, target_path, true);
         let (target_path, prefix) = if no_prefix {
@@ -334,368 +330,79 @@ impl Terminal {
             Target::Dir(d) => d
                 .contents(&self.blog_posts, prefix.starts_with("."))
                 .into_iter()
-                .filter(|s| s.starts_with(prefix) && s != prefix)
+                .filter(|item| {
+                    item.0.starts_with(prefix)
+                        && (item.0 != prefix || matches!(item.1, Target::Dir(_)))
+                })
+                .map(|item| {
+                    // Add appropriate suffix for display
+                    let display_name = match &item.1 {
+                        Target::Dir(_) => format!("{}/", item.0),
+                        Target::File(_) if item.1.is_executable() => format!("{}*", item.0),
+                        _ => item.0.clone(),
+                    };
+                    fs::DirContentItem(display_name, item.1)
+                })
                 .collect(),
             _ => Vec::new(),
         }
     }
 
-    fn tab_commands(&self, cmd_text: &str) -> Vec<String> {
+    fn tab_dirs(&self, path: &str, target_path: &str) -> Vec<fs::DirContentItem> {
+        let no_prefix = target_path.ends_with("/") || target_path.is_empty();
+        let target_path = path_target_to_target_path(path, target_path, true);
+        let (target_path, prefix) = if no_prefix {
+            (target_path.as_ref(), "")
+        } else if let Some(pos) = target_path.rfind("/") {
+            let new_target_path = &target_path[..pos];
+            let new_target_path = if new_target_path.is_empty() {
+                "/"
+            } else {
+                new_target_path
+            };
+            (new_target_path, &target_path[pos + 1..])
+        } else {
+            return Vec::new();
+        };
+        let target = Target::from_str(target_path, &self.blog_posts);
+        match target {
+            Target::Dir(d) => d
+                .contents(&self.blog_posts, prefix.starts_with("."))
+                .into_iter()
+                .filter_map(|item| {
+                    // Only include directories
+                    if matches!(item.1, Target::Dir(_)) && item.0.starts_with(prefix) {
+                        // Add "/" suffix to indicate it's a directory
+                        let display_name = format!("{}/", item.0);
+                        Some(fs::DirContentItem(display_name, item.1))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn tab_commands(&self, cmd_text: &str) -> Vec<fs::DirContentItem> {
         let mut commands = Command::all()
             .into_iter()
             .filter(|s| s.starts_with(cmd_text))
-            .map(|s| s.to_string())
+            .map(|s| fs::DirContentItem(s.to_string(), Target::File(fs::File::MinesSh))) // Use executable as dummy type
             .collect::<Vec<_>>();
 
         // Add aliases
         for alias in CommandAlias::all() {
             let alias_str = alias.as_str();
             if alias_str.starts_with(cmd_text) {
-                commands.push(alias_str.to_string());
+                commands.push(fs::DirContentItem(
+                    alias_str.to_string(),
+                    Target::File(fs::File::MinesSh),
+                ));
             }
         }
 
-        commands.sort();
+        commands.sort_by(|a, b| a.0.cmp(&b.0));
         commands
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     fn create_test_terminal() -> Terminal {
-//         Terminal::new(
-//             &[],
-//             Some(vec![
-//                 "ls".to_string(),
-//                 "pwd".to_string(),
-//                 "echo hello".to_string(),
-//             ]),
-//         )
-//     }
-//
-//     #[test]
-//     fn test_environment_variables() {
-//         let terminal = create_test_terminal();
-//
-//         // Test basic environment variable expansion
-//         let expanded = terminal.expand_env_vars("/", "echo $USER");
-//         assert_eq!(expanded, "echo user");
-//
-//         let expanded = terminal.expand_env_vars("/blog", "echo $PWD");
-//         assert_eq!(expanded, "echo /blog");
-//
-//         let expanded = terminal.expand_env_vars("/", "echo $HOME");
-//         assert_eq!(expanded, "echo /");
-//
-//         let expanded = terminal.expand_env_vars("/", "echo $SITE");
-//         assert_eq!(expanded, "echo hansbaker.com");
-//     }
-//
-//     #[test]
-//     fn test_command_aliases() {
-//         let terminal = create_test_terminal();
-//
-//         // Test alias processing
-//         assert_eq!(terminal.process_aliases("ll"), "ls -la");
-//         assert_eq!(terminal.process_aliases("la"), "ls -a");
-//         assert_eq!(terminal.process_aliases("h"), "history");
-//         assert_eq!(terminal.process_aliases("ll /blog"), "ls -la /blog");
-//         assert_eq!(
-//             terminal.process_aliases("regular_command"),
-//             "regular_command"
-//         );
-//     }
-//
-//     #[test]
-//     fn test_history_command() {
-//         let mut terminal = create_test_terminal();
-//
-//         // Test basic history display
-//         let result = terminal.handle_command("/", "history");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for history command"),
-//         }
-//
-//         // Test history with count
-//         let result = terminal.handle_command("/", "history 2");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for history 2 command"),
-//         }
-//
-//         // Test history clear
-//         let result = terminal.handle_command("/", "history -c");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for history -c command"),
-//         }
-//     }
-//
-//     #[test]
-//     fn test_which_command() {
-//         let mut terminal = create_test_terminal();
-//
-//         // Test which with known command
-//         let result = terminal.handle_command("/", "which ls");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which ls"),
-//         }
-//
-//         // Test which with builtin
-//         let result = terminal.handle_command("/", "which cd");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which cd"),
-//         }
-//
-//         // Test which with alias
-//         let result = terminal.handle_command("/", "which ll");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which ll"),
-//         }
-//
-//         // Test which with unknown command
-//         let result = terminal.handle_command("/", "which nonexistent");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which nonexistent"),
-//         }
-//
-//         // Test which with executable file path
-//         let result = terminal.handle_command("/", "which ./mines.sh");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which ./mines.sh"),
-//         }
-//
-//         // Test which with non-executable file path
-//         let result = terminal.handle_command("/", "which ./thanks.txt");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which ./thanks.txt"),
-//         }
-//
-//         // Test which with non-existent file path
-//         let result = terminal.handle_command("/", "which ./nonexistent.sh");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which ./nonexistent.sh"),
-//         }
-//
-//         // Test which with multiple arguments
-//         let result = terminal.handle_command("/", "which ls ll cd");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which with multiple arguments"),
-//         }
-//     }
-//
-//     #[test]
-//     fn test_date_command() {
-//         let mut terminal = create_test_terminal();
-//
-//         // Test basic date command
-//         let result = terminal.handle_command("/", "date");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for date command"),
-//         }
-//
-//         // Test date with format
-//         let result = terminal.handle_command("/", "date +%Y-%m-%d");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for date +%Y-%m-%d"),
-//         }
-//
-//         // Test date with time format
-//         let result = terminal.handle_command("/", "date \"+%H:%M:%S\"");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for date +%H:%M:%S"),
-//         }
-//     }
-//
-//     #[test]
-//     fn test_tab_completion_includes_new_commands() {
-//         let terminal = create_test_terminal();
-//
-//         // Test that new commands are included in tab completion
-//         let commands = terminal.tab_commands("h");
-//         assert!(commands.contains(&"history".to_string()));
-//         assert!(commands.contains(&"h".to_string())); // alias
-//
-//         let commands = terminal.tab_commands("w");
-//         assert!(commands.contains(&"which".to_string()));
-//         assert!(commands.contains(&"whoami".to_string()));
-//
-//         let commands = terminal.tab_commands("d");
-//         assert!(commands.contains(&"date".to_string()));
-//
-//         let commands = terminal.tab_commands("l");
-//         assert!(commands.contains(&"ls".to_string()));
-//         assert!(commands.contains(&"ll".to_string())); // alias
-//         assert!(commands.contains(&"la".to_string())); // alias
-//     }
-//
-//     #[test]
-//     fn test_command_parsing() {
-//         // Test that new commands are parsed correctly
-//         assert!(matches!(Command::from("history"), Command::History));
-//         assert!(matches!(Command::from("which"), Command::Which));
-//         assert!(matches!(Command::from("date"), Command::Date));
-//         assert!(matches!(Command::from("uptime"), Command::Uptime));
-//         assert!(matches!(Command::from("ps"), Command::Ps));
-//         assert!(matches!(Command::from("kill"), Command::Kill));
-//         assert!(matches!(Command::from("unknown"), Command::Unknown));
-//     }
-//
-//     #[test]
-//     fn test_uptime_command() {
-//         let mut terminal = create_test_terminal();
-//
-//         // Test basic uptime command
-//         let result = terminal.handle_command("/", "uptime");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for uptime command"),
-//         }
-//     }
-//
-//     #[test]
-//     fn test_ps_command() {
-//         let mut terminal = create_test_terminal();
-//
-//         // Test basic ps command
-//         let result = terminal.handle_command("/", "ps");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for ps command"),
-//         }
-//
-//         // Test ps aux command
-//         let result = terminal.handle_command("/", "ps aux");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for ps aux command"),
-//         }
-//
-//         // Test ps with invalid argument
-//         let result = terminal.handle_command("/", "ps invalid");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected
-//             _ => panic!("Expected error for ps with invalid argument"),
-//         }
-//     }
-//
-//     #[test]
-//     fn test_kill_command() {
-//         let mut terminal = create_test_terminal();
-//
-//         // Test kill with valid PID (should show permission denied)
-//         let result = terminal.handle_command("/", "kill 1");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected (permission denied)
-//             _ => panic!("Expected error for kill 1"),
-//         }
-//
-//         // Test kill with PID 42 easter egg
-//         let result = terminal.handle_command("/", "kill 42");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected (with easter egg message)
-//             _ => panic!("Expected error for kill 42"),
-//         }
-//
-//         // Test kill with force flag
-//         let result = terminal.handle_command("/", "kill -9 99");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected (permission denied)
-//             _ => panic!("Expected error for kill -9 99"),
-//         }
-//
-//         // Test kill with non-existent PID
-//         let result = terminal.handle_command("/", "kill 999");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected (no such process)
-//             _ => panic!("Expected error for kill 999"),
-//         }
-//
-//         // Test kill without arguments
-//         let result = terminal.handle_command("/", "kill");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected
-//             _ => panic!("Expected error for kill without arguments"),
-//         }
-//
-//         // Test kill with invalid PID
-//         let result = terminal.handle_command("/", "kill abc");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected
-//             _ => panic!("Expected error for kill with invalid PID"),
-//         }
-//     }
-//
-//     #[test]
-//     fn test_system_commands_in_tab_completion() {
-//         let terminal = create_test_terminal();
-//
-//         // Test that new system commands are included in tab completion
-//         let commands = terminal.tab_commands("u");
-//         assert!(commands.contains(&"uptime".to_string()));
-//
-//         let commands = terminal.tab_commands("p");
-//         assert!(commands.contains(&"ps".to_string()));
-//
-//         let commands = terminal.tab_commands("k");
-//         assert!(commands.contains(&"kill".to_string()));
-//     }
-//
-//     #[test]
-//     fn test_system_commands_in_which() {
-//         let mut terminal = create_test_terminal();
-//
-//         // Test which with new system commands
-//         let result = terminal.handle_command("/", "which uptime");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which uptime"),
-//         }
-//
-//         let result = terminal.handle_command("/", "which ps kill");
-//         match result {
-//             CommandRes::Output(_) => {} // Expected
-//             _ => panic!("Expected output for which ps kill"),
-//         }
-//     }
-//
-//     #[test]
-//     fn test_error_handling() {
-//         let mut terminal = create_test_terminal();
-//
-//         // Test which without arguments
-//         let result = terminal.handle_command("/", "which");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected
-//             _ => panic!("Expected error for which without arguments"),
-//         }
-//
-//         // Test history with invalid argument
-//         let result = terminal.handle_command("/", "history invalid");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected
-//             _ => panic!("Expected error for history with invalid argument"),
-//         }
-//
-//         // Test date with invalid format
-//         let result = terminal.handle_command("/", "date invalid");
-//         match result {
-//             CommandRes::Err(_) => {} // Expected
-//             _ => panic!("Expected error for date with invalid format"),
-//         }
-//     }
-// }

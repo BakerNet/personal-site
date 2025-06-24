@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+use super::components::TextContent;
+
 const LEN_OF_NAV: usize = 7;
 const MINES_SH: &str = r#"#!/bin/bash
 set -e
@@ -10,11 +12,9 @@ mines
 "#;
 const THANKS_TXT: &str =
     "Thank you to my wife and my daughter for bringing immense joy to my life.";
-// TODO - actually implement HIST_SAVE_NO_DUPS and histsize 1000
 // TODO - implement ls -l
 const ZSHRC_CONTENT: &str = r#"# Simple zsh configuration
 unsetopt beep
-setopt HIST_SAVE_NO_DUPS
 
 # Basic completion
 autoload -Uz compinit
@@ -38,7 +38,7 @@ ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[blue]%}) %{$fg[yellow]%}✗"
 ZSH_THEME_GIT_PROMPT_CLEAN="%{$fg[blue]%})"
 
 # History settings
-HISTFILE=window.localStorage
+HISTFILE=window.localStorage[\"cmd_history\"]
 HISTSIZE=1000
 SAVEHIST=1000
 setopt SHARE_HISTORY
@@ -60,7 +60,13 @@ pub fn parse_multitarget(args: Vec<&str>) -> (Vec<char>, Vec<&str>) {
                 let mut opts = s.chars().filter(|c| *c != '-').collect::<Vec<char>>();
                 options.append(&mut opts);
             } else {
-                t.push(s);
+                if s.starts_with("~/") {
+                    t.push(&s[1..]);
+                } else if s == "~" {
+                    t.push("/");
+                } else {
+                    t.push(s);
+                }
             }
             (options, t)
         },
@@ -108,6 +114,15 @@ pub fn path_target_to_target_path(path: &str, target: &str, preserve_dot: bool) 
 }
 
 #[derive(Debug, Clone)]
+pub struct DirContentItem(pub String, pub Target);
+
+impl TextContent for DirContentItem {
+    fn text_content(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Dir {
     Base,
     Blog,
@@ -116,43 +131,78 @@ pub enum Dir {
 }
 
 impl Dir {
-    pub fn contents(&self, blog_posts: &[String], all: bool) -> Vec<String> {
-        let mut common = if all {
-            vec!["./".to_string(), "../".to_string(), "nav.rs*".to_string()]
-        } else {
-            vec!["nav.rs*".to_string()]
+    pub fn contents(&self, blog_posts: &[String], all: bool) -> Vec<DirContentItem> {
+        let sort_items = |items: &mut Vec<DirContentItem>| {
+            items.sort_by(|a, b| a.0.cmp(&b.0));
         };
         match self {
             Dir::Base => {
-                let mut items = vec![
-                    "blog/".to_string(),
-                    "cv/".to_string(),
-                    "mines.sh*".to_string(),
-                    "thanks.txt".to_string(),
+                let mut items: Vec<DirContentItem> = vec![
+                    DirContentItem("blog".to_string(), Target::Dir(Dir::Blog)),
+                    DirContentItem("cv".to_string(), Target::Dir(Dir::CV)),
+                    DirContentItem("mines.sh".to_string(), Target::File(File::MinesSh)),
+                    DirContentItem("thanks.txt".to_string(), Target::File(File::ThanksTxt)),
+                    DirContentItem(
+                        "nav.rs".to_string(),
+                        Target::File(File::Nav("/".to_string())),
+                    ),
                 ];
-                items.append(&mut common);
-                items.sort();
                 if all {
-                    // './' should come before '../'
-                    items.swap(0, 1);
+                    items.push(DirContentItem(".".to_string(), Target::Dir(Dir::Base)));
+                    items.push(DirContentItem("..".to_string(), Target::Dir(Dir::Base)));
+                    items.push(DirContentItem(
+                        ".zshrc".to_string(),
+                        Target::File(File::ZshRc),
+                    ));
                 }
+                sort_items(&mut items);
                 items
             }
             Dir::Blog => {
-                let mut posts = blog_posts
+                let mut items = blog_posts
                     .iter()
-                    .map(|bp| format!("{bp}/"))
+                    .map(|bp| {
+                        DirContentItem(bp.to_string(), Target::Dir(Dir::BlogPost(bp.to_string())))
+                    })
                     .collect::<Vec<_>>();
-                posts.append(&mut common);
-                posts.sort();
+                items.push(DirContentItem(
+                    "nav.rs".to_string(),
+                    Target::File(File::Nav("/blog".to_string())),
+                ));
                 if all {
-                    // './' should come before '../'
-                    posts.swap(0, 1);
+                    items.push(DirContentItem(".".to_string(), Target::Dir(Dir::Blog)));
+                    items.push(DirContentItem("..".to_string(), Target::Dir(Dir::Base)));
                 }
-                posts
+                sort_items(&mut items);
+                items
             }
-            Dir::CV => common,
-            Dir::BlogPost(_) => common,
+            Dir::CV => {
+                let mut items = vec![DirContentItem(
+                    "nav.rs".to_string(),
+                    Target::File(File::Nav("/cv".to_string())),
+                )];
+                if all {
+                    items.push(DirContentItem(".".to_string(), Target::Dir(Dir::Blog)));
+                    items.push(DirContentItem("..".to_string(), Target::Dir(Dir::CV)));
+                }
+                sort_items(&mut items);
+                items
+            }
+            Dir::BlogPost(bp) => {
+                let mut items = vec![DirContentItem(
+                    bp.to_string(),
+                    Target::Dir(Dir::BlogPost(bp.to_string())),
+                )];
+                if all {
+                    items.push(DirContentItem(
+                        ".".to_string(),
+                        Target::Dir(Dir::BlogPost(bp.to_string())),
+                    ));
+                    items.push(DirContentItem("..".to_string(), Target::Dir(Dir::Blog)));
+                }
+                sort_items(&mut items);
+                items
+            }
         }
     }
 
@@ -171,16 +221,17 @@ pub enum File {
     MinesSh,
     ThanksTxt,
     ZshRc,
-    ZshHistory,
+    // ZshHistory,
     Nav(String),
 }
 
 impl File {
+    #[allow(dead_code)]
     pub fn name(&self) -> &'static str {
         match self {
             File::MinesSh => "mines.sh",
             File::ThanksTxt => "thanks.txt",
-            File::ZshRc => ".zshrc"
+            File::ZshRc => ".zshrc",
             File::Nav(_) => "nav.rs",
         }
     }
@@ -240,6 +291,7 @@ impl Target {
             }
             "/mines.sh" => Self::File(File::MinesSh),
             "/thanks.txt" => Self::File(File::ThanksTxt),
+            "/.zshrc" => Self::File(File::ZshRc),
             "/nav.rs" => Self::File(File::Nav("/".to_string())),
             "/blog/nav.rs" | "/cv/nav.rs" => {
                 Self::File(File::Nav(path[..path.len() - LEN_OF_NAV].to_string()))

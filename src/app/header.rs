@@ -1,5 +1,8 @@
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "hydrate")]
+use std::collections::VecDeque;
+
 use leptos::{
     either::*,
     ev::{Event, KeyboardEvent},
@@ -19,12 +22,13 @@ use leptos_use::storage::use_local_storage;
 
 use crate::blog::Assets;
 
+use super::terminal::fs::{DirContentItem, Target};
 use super::terminal::{ColumnarView, CommandRes, Terminal};
 
 #[derive(Debug, Clone)]
 struct TabState {
     cursor: usize,
-    opts: Arc<Vec<String>>,
+    opts: Arc<Vec<DirContentItem>>,
     index: Option<usize>,
 }
 
@@ -53,7 +57,7 @@ pub fn Header() -> impl IntoView {
 
     #[cfg(feature = "hydrate")]
     let (cmd_history, set_cmd_history, _) =
-        use_local_storage::<Vec<String>, JsonSerdeWasmCodec>("cmd_history");
+        use_local_storage::<VecDeque<String>, JsonSerdeWasmCodec>("cmd_history");
 
     #[cfg(feature = "hydrate")]
     Effect::watch(
@@ -259,10 +263,11 @@ pub fn Header() -> impl IntoView {
                 if is_tabbing {
                     set_tab_state(None);
                 }
+                let current_val = el.value();
                 let HistState {
                     cursor,
                     opts,
-                    index,
+                    mut index,
                 } = if is_cycling_hist {
                     hist_state.get_untracked().unwrap()
                 } else {
@@ -284,8 +289,20 @@ pub fn Header() -> impl IntoView {
                 if index == 0 {
                     return;
                 }
-                let index = index - 1;
-                let new_val = &(*opts)[index];
+                
+                // Find the next different command going backwards
+                let mut new_val = &(*opts)[index - 1];
+                index -= 1;
+                while index > 0 && new_val == &current_val {
+                    index -= 1;
+                    new_val = &(*opts)[index];
+                }
+                
+                // If we only found duplicates all the way to the start, don't move
+                if new_val == &current_val && index == 0 {
+                    return;
+                }
+                
                 el.set_value(new_val);
                 set_current_input.set(new_val.clone());
                 set_cursor_position.set(new_val.len()); // Set cursor to end of new value
@@ -305,13 +322,20 @@ pub fn Header() -> impl IntoView {
                     return;
                 }
                 ev.prevent_default();
+                let current_val = el.value();
                 let HistState {
                     cursor,
                     opts,
-                    index,
+                    mut index,
                 } = hist_state.get_untracked().unwrap();
-                let index = index + 1;
-                if index == opts.len() {
+                
+                // Find the next different command going forwards
+                index += 1;
+                while index < opts.len() && (*opts)[index] == current_val {
+                    index += 1;
+                }
+                
+                if index >= opts.len() {
                     let val = el.value();
                     let truncated = &val[..cursor];
                     el.set_value(truncated);
@@ -320,6 +344,7 @@ pub fn Header() -> impl IntoView {
                     set_hist_state(None);
                     return;
                 }
+                
                 let new_val = &(*opts)[index];
                 el.set_value(new_val);
                 set_current_input.set(new_val.clone());
@@ -373,7 +398,7 @@ pub fn Header() -> impl IntoView {
                         (None, true) | (Some(0), true) => opts.len() - 1,
                         (Some(i), true) => i - 1,
                     };
-                    let new = tab_replace(&val[..cursor], &opts[new_index]);
+                    let new = tab_replace(&val[..cursor], &opts[new_index].0);
                     el.set_value(&new);
                     set_current_input.set(new.clone());
                     set_cursor_position.set(new.len()); // Set cursor to end after tab completion
@@ -398,7 +423,7 @@ pub fn Header() -> impl IntoView {
                         return;
                     };
                     if opts.len() == 1 {
-                        let new = tab_replace(&val, &opts[0]);
+                        let new = tab_replace(&val, &opts[0].0);
                         el.set_value(&new);
                         set_current_input.set(new.clone());
                         set_cursor_position.set(new.len()); // Set cursor to end after tab completion
@@ -407,7 +432,7 @@ pub fn Header() -> impl IntoView {
                     let cursor = val.len();
                     let index = if is_shift {
                         let i = opts.len() - 1;
-                        let new = tab_replace(&val[..cursor], &opts[i]);
+                        let new = tab_replace(&val[..cursor], &opts[i].0);
                         el.set_value(&new);
                         set_current_input.set(new.clone());
                         set_cursor_position.set(new.len()); // Set cursor to end after tab completion
@@ -454,10 +479,14 @@ pub fn Header() -> impl IntoView {
     };
 
     let auto_comp_item = {
-        move |s: &str, active: bool| {
-            let is_dir = s.ends_with("/");
-            let is_ex = s.ends_with("*");
-            let s_display = if !active && (is_dir || is_ex) {
+        move |item: &DirContentItem, active: bool| {
+            let s = &item.0;
+            let target = &item.1;
+            let is_dir = matches!(target, Target::Dir(_));
+            let is_ex = target.is_executable();
+            let has_suffix = s.ends_with("/") || s.ends_with("*");
+
+            let s_display = if !active && has_suffix {
                 s[..s.len() - 1].to_string()
             } else {
                 s.to_owned()
@@ -669,35 +698,26 @@ pub fn Header() -> impl IntoView {
                 </div>
                 {move || {
                     let tab_state = tab_state.get();
-                    if tab_state.is_none() {
-                        None
-                    } else {
-                        Some(
-                            view! {
-                                <div class="mt-2 p-3 rounded-md bg-black/30 border border-muted/40 backdrop-blur-sm">
-                                    <pre class="whitespace-pre-wrap terminal-output">
-                                        {tab_state
-                                            .map(|ts| {
-                                                let selected = ts
-                                                    .opts
-                                                    .iter()
-                                                    .enumerate()
-                                                    .find_map(|(vi, s)| {
-                                                        if Some(vi) == ts.index { Some(s.to_owned()) } else { None }
-                                                    });
-                                                let render_func = move |s: String| {
-                                                    let is_sel = Some(&s) == selected.as_ref();
-                                                    auto_comp_item(&s, is_sel).into_any()
-                                                };
-                                                view! {
-                                                    <ColumnarView items=ts.opts.to_vec() render_func />
-                                                }
-                                            })}
-                                    </pre>
-                                </div>
-                            },
-                        )
-                    }
+                    tab_state.map(|ts| {
+                        let selected = ts
+                            .opts
+                            .iter()
+                            .enumerate()
+                            .find_map(|(vi, item)| {
+                                if Some(vi) == ts.index { Some(item.to_owned()) } else { None }
+                            });
+                        let render_func = move |item: DirContentItem| {
+                            let is_sel = selected.as_ref().map(|s| &s.0) == Some(&item.0);
+                            auto_comp_item(&item, is_sel).into_any()
+                        };
+                        view! {
+                            <div class="mt-2 p-3 rounded-md bg-black/30 border border-muted/40 backdrop-blur-sm">
+                                <pre class="whitespace-pre-wrap terminal-output">
+                                    <ColumnarView items=ts.opts.to_vec() render_func />
+                                </pre>
+                            </div>
+                        }
+                    })
                 }}
             </div>
         </header>
