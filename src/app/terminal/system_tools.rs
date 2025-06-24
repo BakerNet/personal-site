@@ -1,4 +1,3 @@
-
 use super::command::{CommandAlias, CommandRes, Executable};
 use super::fs::{path_target_to_target_path, File, Target};
 use super::simple_tools::MinesCommand;
@@ -113,18 +112,14 @@ impl Executable for UnknownCommand {
         if !args.is_empty() && !is_executable {
             // only mines.sh and nav.rs are executable, so only these can accept arguments
             let error_msg = format!("command not found: {target_string}");
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
         match target {
             Target::Dir(_) => CommandRes::redirect(target_path),
             Target::File(f) => {
                 if target_string.ends_with("/") {
                     let error_msg = format!("not a directory: {target_string}");
-                    return CommandRes::new()
-                        .with_error()
-                        .with_stderr(error_msg);
+                    return CommandRes::new().with_error().with_stderr(error_msg);
                 }
                 match f {
                     File::Nav(s) => CommandRes::redirect(s),
@@ -133,30 +128,23 @@ impl Executable for UnknownCommand {
                             MinesCommand.execute(path, args, None, is_output_tty)
                         } else {
                             let error_msg = format!("command not found: {target_string}\nhint: try 'mines' or '/mines.sh'");
-                            CommandRes::new()
-                                .with_error()
-                                .with_stderr(error_msg)
+                            CommandRes::new().with_error().with_stderr(error_msg)
                         }
                     }
-                    File::ThanksTxt => {
+                    File::ThanksTxt | File::ZshRc => {
                         let error_msg = if target_string.contains("/") {
                             format!("permission denied: {target_string}")
                         } else {
                             format!("command not found: {target_string}")
                         };
-                        CommandRes::new()
-                            .with_error()
-                            .with_stderr(error_msg)
+                        CommandRes::new().with_error().with_stderr(error_msg)
                     }
                 }
             }
             Target::Invalid => {
                 let error_msg = format!("command not found: {target_string}");
-                CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg)
+                CommandRes::new().with_error().with_stderr(error_msg)
             }
         }
     }
 }
-

@@ -1,51 +1,7 @@
-use leptos::{either::*, prelude::*};
-use leptos_router::components::*;
+use leptos::prelude::*;
 
 const CHAR_WIDTH: usize = 9;
 const TERMINAL_MARGINS: usize = 65;
-
-#[component]
-pub fn LsView(items: Vec<String>, base: String) -> impl IntoView {
-    let dir_class = "text-blue";
-    let ex_class = "text-green";
-    let item_clone = items.clone();
-    let render_func = {
-        let base = base.to_owned();
-        move |s: String| {
-            if s.ends_with("/") {
-                let s = s[..s.len() - 1].to_string();
-                let base = if base == "/" { "" } else { &base };
-                let href = if s == "." {
-                    base.to_string()
-                } else {
-                    format!("{}/{}", base.to_owned(), s)
-                };
-                // note - adding extra space because trimming trailing '/'
-                EitherOf3::A(view! {
-                    <A href=href attr:class=dir_class>
-                        {s}
-                    </A>
-                    " "
-                })
-            } else if s.ends_with("*") {
-                let s = s[..s.len() - 1].to_string();
-                // note - adding extra space because trimming trailing '*'
-                EitherOf3::B(view! {
-                    <span class=ex_class>{s}</span>
-                    " "
-                })
-            } else {
-                EitherOf3::C(view! { <span>{s}</span> })
-            }
-            .into_any()
-        }
-    };
-    view! {
-        <div>
-            <ColumnarView items=item_clone render_func />
-        </div>
-    }
-}
 
 fn num_rows(num_items: usize, cols: usize) -> usize {
     let items_per_row = num_items / cols;
@@ -56,10 +12,21 @@ fn num_rows(num_items: usize, cols: usize) -> usize {
     }
 }
 
+pub trait TextContent {
+    fn text_content(&self) -> &str;
+}
+
+impl TextContent for String {
+    fn text_content(&self) -> &str {
+        self.as_str()
+    }
+}
+
 #[component]
-pub fn ColumnarView<F>(items: Vec<String>, render_func: F) -> impl IntoView
+pub fn ColumnarView<T, F>(items: Vec<T>, render_func: F) -> impl IntoView
 where
-    F: Fn(String) -> AnyView + 'static,
+    T: TextContent + Clone + 'static,
+    F: Fn(T) -> AnyView + 'static,
 {
     let available_space = window()
         .inner_width()
@@ -69,7 +36,10 @@ where
         .round() as usize
         - TERMINAL_MARGINS;
     let available_space = available_space / CHAR_WIDTH;
-    let total_len = items.iter().map(|s| s.len() + 2).sum::<usize>();
+    let total_len = items
+        .iter()
+        .map(|s| s.text_content().len() + 2)
+        .sum::<usize>();
     if total_len < available_space {
         return view! {
             {items
@@ -93,7 +63,7 @@ where
             .chunks(per_col)
             .map(|v| {
                 v.iter()
-                    .map(|s| s.len() + 2)
+                    .map(|s| s.text_content().len() + 2)
                     .max()
                     .expect("there should be a max len for each column")
             })
@@ -107,12 +77,12 @@ where
     let item_cols = items
         .chunks(rows)
         .map(|x| x.to_vec())
-        .collect::<Vec<Vec<String>>>();
+        .collect::<Vec<Vec<T>>>();
     let col_lens = item_cols
         .iter()
         .map(|v| {
             v.iter()
-                .map(|s| s.len() + 2)
+                .map(|s| s.text_content().len() + 2)
                 .max()
                 .expect("there should be a max len for each column")
         })
@@ -127,9 +97,9 @@ where
                         .filter(|(v, _)| row < v.len())
                         .map(|(v, l)| (&v[row], l))
                         .map(|(s, l)| {
-                            let fill = l - s.len();
+                            let fill = l - s.text_content().len();
                             view! {
-                                {render_func(s.to_string())}
+                                {render_func(s.clone())}
                                 {" ".repeat(fill)}
                             }
                         })

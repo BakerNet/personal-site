@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
-use leptos::prelude::*;
+use leptos::{either::*, prelude::*};
+use leptos_router::components::*;
+
+use crate::app::terminal::fs::DirContentItem;
 
 use super::command::{CommandRes, Executable};
-use super::components::{LsView, LsViewProps};
-use super::fs::{parse_multitarget, path_target_to_target_path, Target};
+use super::components::{ColumnarView, TextContent};
+use super::fs::{parse_multitarget, path_target_to_target_path, Dir, Target};
 pub struct LsCommand {
     blog_posts: Vec<String>,
 }
@@ -42,94 +45,161 @@ This version of ls only supports option 'a'"#
         }
 
         // Process targets and collect errors
-        let mut stdout_parts = Vec::new();
         let mut stderr_parts = Vec::new();
-        let mut targets = Vec::new();
+        let mut file_targets: Vec<(String, Target)> = Vec::new();
+        let mut dir_targets: Vec<(String, Dir)> = Vec::new();
         let mut has_error = false;
 
-        for (i, tp) in target_paths.iter().enumerate() {
+        for tp in target_paths.iter() {
             let target_string = tp.to_string();
             let target_path = path_target_to_target_path(path, tp, false);
             let target = Target::from_str(&target_path, &self.blog_posts);
 
-            match &target {
-                Target::Dir(d) => {
-                    if target_paths.len() > 1 {
-                        if i > 0 {
-                            stdout_parts.push(String::new()); // Empty line between directories
-                        }
-                        stdout_parts.push(format!("{target_string}:"));
-                    }
-                    let contents = d.contents(&self.blog_posts, all);
-                    stdout_parts.push(contents.join("\n"));
-                }
-                Target::File(f) => {
-                    stdout_parts.push(f.name().to_string());
-                }
+            match target {
+                Target::File(_) => file_targets.push((tp.to_string(), target)),
+                Target::Dir(d) => dir_targets.push((tp.to_string(), d)),
                 Target::Invalid => {
+                    // If the target is empty, we treat it as the current directory
                     has_error = true;
                     stderr_parts.push(format!(
                         "ls: cannot access '{target_string}': No such file or directory"
                     ));
+                    continue;
                 }
             }
-
-            targets.push((tp.to_string(), target));
         }
-
-        let stdout_text = stdout_parts.join("\n");
-        let stderr_text = stderr_parts.join("\n");
 
         let mut result = CommandRes::new();
 
         if has_error {
-            result = result.with_error();
+            let stderr_text = stderr_parts.join("\n");
+            result = result.with_error().with_stderr(stderr_text);
         }
 
-        if !stdout_text.is_empty() {
-            if is_output_tty {
-                let posts = self.blog_posts.clone();
-                let is_multi = target_paths.len() > 1;
-                let all_captured = all;
-                result = result.with_stdout_view(Arc::new(move || {
-                    let mut all_views = Vec::new();
-                    for (i, (tp, target)) in targets.iter().enumerate() {
-                        if let Target::Dir(d) = target {
-                            if is_multi {
-                                if i > 0 {
-                                    all_views.push(view! { <br /> }.into_any());
-                                }
-                                all_views.push(
-                                    view! {
-                                        {format!("{tp}:")}
-                                        <br />
-                                    }
-                                    .into_any(),
-                                );
-                            }
-                            all_views.push(
-                                LsView(LsViewProps {
-                                    items: d.contents(&posts, all_captured),
-                                    base: d.base(),
-                                })
-                                .into_any(),
-                            );
-                        } else if let Target::File(f) = target {
-                            all_views.push(view! { {f.name()} }.into_any());
-                        }
+        file_targets.sort_by(|a, b| a.0.cmp(&b.0));
+        dir_targets.sort_by(|a, b| a.0.cmp(&b.0));
+
+        if is_output_tty {
+            let posts = self.blog_posts.clone();
+            let is_multi =
+                dir_targets.len() > 1 || !dir_targets.is_empty() && !file_targets.is_empty();
+            let all_captured = all;
+            let path_owned = path.to_owned();
+            result = result.with_stdout_view(Arc::new(move || {
+                let mut all_views = Vec::new();
+                if !file_targets.is_empty() {
+                    all_views.push(
+                        LsView(LsViewProps {
+                            items: file_targets
+                                .iter()
+                                .map(|(s, t)| DirContentItem(s.to_string(), t.to_owned()))
+                                .collect(),
+                            base: path_owned.clone(),
+                        })
+                        .into_any(),
+                    );
+                    if is_multi {
+                        all_views.push(view! { <br /> }.into_any());
                     }
-                    view! { {all_views} }.into_any()
-                }))
-            } else {
+                }
+                for (i, (tp, d)) in dir_targets.iter().enumerate() {
+                    if is_multi {
+                        if i > 0 {
+                            all_views.push(view! { <br /> }.into_any());
+                        }
+                        all_views.push(
+                            view! {
+                                {format!("{tp}:")}
+                                <br />
+                            }
+                            .into_any(),
+                        );
+                    }
+                    all_views.push(
+                        LsView(LsViewProps {
+                            items: d.contents(&posts, all_captured),
+                            base: d.base(),
+                        })
+                        .into_any(),
+                    );
+                }
+                view! { {all_views} }.into_any()
+            }))
+        } else {
+            let mut stdout_text = String::new();
+            let is_multi =
+                dir_targets.len() > 1 || !dir_targets.is_empty() && !file_targets.is_empty();
+
+            // Handle file targets
+            if !file_targets.is_empty() {
+                for (_, target) in file_targets.iter() {
+                    if let Target::File(f) = target {
+                        if !stdout_text.is_empty() {
+                            stdout_text.push('\n');
+                        }
+                        stdout_text.push_str(f.name());
+                    }
+                }
+            }
+
+            // Handle directory targets
+            for (tp, d) in dir_targets.iter() {
+                if is_multi {
+                    if !stdout_text.is_empty() {
+                        stdout_text.push_str("\n\n");
+                    }
+                    stdout_text.push_str(&format!("{tp}:\n"));
+                }
+
+                let items = d.contents(&self.blog_posts, all);
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 || (!is_multi && !stdout_text.is_empty()) {
+                        stdout_text.push('\n');
+                    }
+                    stdout_text.push_str(item.text_content());
+                }
+            }
+
+            if !stdout_text.is_empty() {
                 result = result.with_stdout_text(stdout_text);
             }
         }
 
-        if !stderr_text.is_empty() {
-            result = result.with_stderr(stderr_text);
-        }
-
         result
+    }
+}
+
+#[component]
+fn LsView(items: Vec<DirContentItem>, base: String) -> impl IntoView {
+    let dir_class = "text-blue";
+    let ex_class = "text-green";
+    let render_func = {
+        move |s: DirContentItem| {
+            if matches!(s.1, Target::Dir(_)) {
+                let base = if base == "/" { "" } else { &base };
+                let href = if s.0 == "." {
+                    base.to_string()
+                } else {
+                    format!("{}/{}", base, s.0)
+                };
+                // note - adding extra space because trimming trailing '/'
+                EitherOf3::A(view! {
+                    <A href=href attr:class=dir_class>
+                        {s.text_content().to_string()}
+                    </A>
+                })
+            } else if s.1.is_executable() {
+                EitherOf3::B(view! { <span class=ex_class>{s.text_content()}</span> })
+            } else {
+                EitherOf3::C(view! { <span>{s.text_content()}</span> })
+            }
+            .into_any()
+        }
+    };
+    view! {
+        <div>
+            <ColumnarView items render_func />
+        </div>
     }
 }
 
