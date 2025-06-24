@@ -18,6 +18,7 @@ WORKDIR /app
 COPY . .
 
 # Build the app
+ENV LEPTOS_HASH_FILES="true"
 RUN cargo leptos build --release -vv
 
 FROM debian:bookworm-slim AS runtime
@@ -43,6 +44,9 @@ WORKDIR /app
 
 # Set any required env variables and
 ENV RUST_LOG="info"
+ENV RUST_BACKTRACE=1
+# Only add backtraces for panics
+ENV RUST_LIB_BACKTRACE=0
 ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
 ENV LEPTOS_SITE_ROOT="site"
 ENV LEPTOS_HASH_FILES="true"

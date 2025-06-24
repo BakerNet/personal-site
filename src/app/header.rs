@@ -1,6 +1,14 @@
 use std::sync::{Arc, Mutex};
 
-use leptos::{either::*, ev::KeyboardEvent, html, prelude::*};
+#[cfg(feature = "hydrate")]
+use std::collections::VecDeque;
+
+use leptos::{
+    either::*,
+    ev::{Event, KeyboardEvent},
+    html,
+    prelude::*,
+};
 use leptos_router::{
     components::*,
     hooks::{use_location, use_navigate},
@@ -14,12 +22,13 @@ use leptos_use::storage::use_local_storage;
 
 use crate::blog::Assets;
 
+use super::terminal::fs::{DirContentItem, Target};
 use super::terminal::{ColumnarView, CommandRes, Terminal};
 
 #[derive(Debug, Clone)]
 struct TabState {
     cursor: usize,
-    opts: Arc<Vec<String>>,
+    opts: Arc<Vec<DirContentItem>>,
     index: Option<usize>,
 }
 
@@ -42,10 +51,13 @@ pub fn Header() -> impl IntoView {
     let (is_err, set_is_err) = signal(false);
     let (tab_state, set_tab_state) = signal(None::<TabState>);
     let (hist_state, set_hist_state) = signal(None::<HistState>);
+    let (current_input, set_current_input) = signal(String::new());
+    let (cursor_position, set_cursor_position) = signal(0usize);
+    let (ghost_text, set_ghost_text) = signal(None::<String>);
 
     #[cfg(feature = "hydrate")]
     let (cmd_history, set_cmd_history, _) =
-        use_local_storage::<Vec<String>, JsonSerdeWasmCodec>("cmd_history");
+        use_local_storage::<VecDeque<String>, JsonSerdeWasmCodec>("cmd_history");
 
     #[cfg(feature = "hydrate")]
     Effect::watch(
@@ -109,29 +121,45 @@ pub fn Header() -> impl IntoView {
                     .expect("should be able to unlock terminal")
                     .handle_command(&path, &cmd)
             } else {
-                CommandRes::EmptyErr
+                CommandRes::new().with_error()
             }
         });
 
         match res {
-            CommandRes::EmptyErr => {
-                set_is_err(true);
-            }
-            CommandRes::Err(s) => {
-                set_is_err(true);
-                history_vec.push(s);
+            CommandRes::Output {
+                is_err,
+                stdout_view,
+                stdout_text,
+                stderr_text,
+            } => {
+                set_is_err(is_err);
+                // Convert stderr text to view with consistent error styling
+                if let Some(stderr_msg) = stderr_text {
+                    if !stderr_msg.is_empty() {
+                        let error_view = Arc::new(move || {
+                            view! { <div class="text-red whitespace-pre-wrap">{stderr_msg.clone()}</div> }
+                            .into_any()
+                        });
+                        history_vec.push(error_view);
+                    }
+                }
+                // Use stdout_view if available, otherwise convert stdout_text to view
+                if let Some(view) = stdout_view {
+                    history_vec.push(view);
+                } else if let Some(stdout_msg) = stdout_text {
+                    if !stdout_msg.is_empty() {
+                        let text_view = Arc::new(move || {
+                            view! { <div class="whitespace-pre-wrap" inner_html=stdout_msg.clone()></div> }
+                            .into_any()
+                        });
+                        history_vec.push(text_view);
+                    }
+                }
             }
             CommandRes::Redirect(s) => {
                 set_is_err(false);
                 let navigate = use_navigate();
                 navigate(&s, NavigateOptions::default());
-            }
-            CommandRes::Output(s) => {
-                set_is_err(false);
-                history_vec.push(s);
-            }
-            CommandRes::Nothing => {
-                set_is_err(false);
             }
         }
 
@@ -159,6 +187,42 @@ pub fn Header() -> impl IntoView {
         }
     };
 
+    #[cfg(not(feature = "hydrate"))]
+    let input_handler = move |_ev: Event| {};
+    // Handle input changes for ghost text suggestions
+    #[cfg(feature = "hydrate")]
+    let input_handler = {
+        move |ev: Event| {
+            let input_value = event_target_value(&ev);
+            set_current_input.set(input_value.clone());
+
+            // Track cursor position
+            if let Some(input_el) = input_ref.get_untracked() {
+                if let Some(pos) = input_el.selection_start().unwrap_or(None) {
+                    set_cursor_position.set(pos as usize);
+                }
+            }
+
+            if !input_value.is_empty() {
+                let history = cmd_history.get_untracked();
+                // Find the first command in history that starts with current input
+                if let Some(suggestion) = history
+                    .iter()
+                    .rev()
+                    .find(|cmd| cmd.starts_with(&input_value) && cmd.len() > input_value.len())
+                {
+                    // Show the full remaining part of the suggestion
+                    let remaining = &suggestion[input_value.len()..];
+                    set_ghost_text.set(Some(remaining.to_string()));
+                } else {
+                    set_ghost_text.set(None);
+                }
+            } else {
+                set_ghost_text.set(None);
+            }
+        }
+    };
+
     let keydown_handler = move |ev: KeyboardEvent| {
         let el = if let Some(el) = input_ref.get_untracked() {
             el
@@ -169,6 +233,8 @@ pub fn Header() -> impl IntoView {
         if ev.ctrl_key() && ev.key() == "c" {
             handle_cmd(el.value(), true);
             el.set_value("");
+            set_current_input(String::new());
+            set_cursor_position(0);
             set_hist_state(None);
             set_tab_state(None);
             return;
@@ -176,6 +242,8 @@ pub fn Header() -> impl IntoView {
         if ev.ctrl_key() && ev.key() == "l" {
             handle_cmd("clear".to_string(), false);
             el.set_value("");
+            set_current_input(String::new());
+            set_cursor_position(0);
             set_hist_state(None);
             set_tab_state(None);
             return;
@@ -191,13 +259,15 @@ pub fn Header() -> impl IntoView {
             "ArrowUp" => {
                 // cycle history prev
                 ev.prevent_default();
+                set_ghost_text.set(None); // Clear ghost text during history navigation
                 if is_tabbing {
                     set_tab_state(None);
                 }
+                let current_val = el.value();
                 let HistState {
                     cursor,
                     opts,
-                    index,
+                    mut index,
                 } = if is_cycling_hist {
                     hist_state.get_untracked().unwrap()
                 } else {
@@ -219,9 +289,23 @@ pub fn Header() -> impl IntoView {
                 if index == 0 {
                     return;
                 }
-                let index = index - 1;
-                let new_val = &(*opts)[index];
+                
+                // Find the next different command going backwards
+                let mut new_val = &(*opts)[index - 1];
+                index -= 1;
+                while index > 0 && new_val == &current_val {
+                    index -= 1;
+                    new_val = &(*opts)[index];
+                }
+                
+                // If we only found duplicates all the way to the start, don't move
+                if new_val == &current_val && index == 0 {
+                    return;
+                }
+                
                 el.set_value(new_val);
+                set_current_input.set(new_val.clone());
+                set_cursor_position.set(new_val.len()); // Set cursor to end of new value
                 set_hist_state(Some(HistState {
                     cursor,
                     opts,
@@ -230,6 +314,7 @@ pub fn Header() -> impl IntoView {
             }
             "ArrowDown" => {
                 // cycle history next
+                set_ghost_text.set(None); // Clear ghost text during history navigation
                 if is_tabbing {
                     set_tab_state(None);
                 }
@@ -237,25 +322,58 @@ pub fn Header() -> impl IntoView {
                     return;
                 }
                 ev.prevent_default();
+                let current_val = el.value();
                 let HistState {
                     cursor,
                     opts,
-                    index,
+                    mut index,
                 } = hist_state.get_untracked().unwrap();
-                let index = index + 1;
-                if index == opts.len() {
+                
+                // Find the next different command going forwards
+                index += 1;
+                while index < opts.len() && (*opts)[index] == current_val {
+                    index += 1;
+                }
+                
+                if index >= opts.len() {
                     let val = el.value();
-                    el.set_value(&val[..cursor]);
+                    let truncated = &val[..cursor];
+                    el.set_value(truncated);
+                    set_current_input.set(truncated.to_string());
+                    set_cursor_position.set(truncated.len()); // Set cursor to end of truncated value
                     set_hist_state(None);
                     return;
                 }
+                
                 let new_val = &(*opts)[index];
                 el.set_value(new_val);
+                set_current_input.set(new_val.clone());
+                set_cursor_position.set(new_val.len()); // Set cursor to end of new value
                 set_hist_state(Some(HistState {
                     cursor,
                     opts,
                     index,
                 }));
+            }
+            "ArrowRight" => {
+                // Accept ghost text suggestion only if cursor is at end
+                let ghost = ghost_text.get_untracked();
+                let current_pos = cursor_position.get_untracked();
+                let current_input_val = current_input.get_untracked();
+
+                if ghost.is_some()
+                    && !is_tabbing
+                    && !is_cycling_hist
+                    && current_pos >= current_input_val.len()
+                {
+                    ev.prevent_default();
+                    let current_val = el.value();
+                    let new_val = format!("{current_val}{}", ghost.unwrap());
+                    el.set_value(&new_val);
+                    set_current_input.set(new_val.clone());
+                    set_cursor_position.set(new_val.len()); // Set cursor to end after accepting ghost text
+                    set_ghost_text.set(None);
+                }
             }
             "Tab" => {
                 let val = el.value();
@@ -263,6 +381,7 @@ pub fn Header() -> impl IntoView {
                     return;
                 }
                 ev.prevent_default();
+                set_ghost_text.set(None); // Clear ghost text during tab completion
                 let is_shift = ev.shift_key();
                 if is_tabbing {
                     // cycle tab options
@@ -279,8 +398,10 @@ pub fn Header() -> impl IntoView {
                         (None, true) | (Some(0), true) => opts.len() - 1,
                         (Some(i), true) => i - 1,
                     };
-                    let new = tab_replace(&val[..cursor], &opts[new_index]);
+                    let new = tab_replace(&val[..cursor], &opts[new_index].0);
                     el.set_value(&new);
+                    set_current_input.set(new.clone());
+                    set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                     set_tab_state(Some(TabState {
                         cursor,
                         opts,
@@ -302,15 +423,19 @@ pub fn Header() -> impl IntoView {
                         return;
                     };
                     if opts.len() == 1 {
-                        let new = tab_replace(&val, &opts[0]);
+                        let new = tab_replace(&val, &opts[0].0);
                         el.set_value(&new);
+                        set_current_input.set(new.clone());
+                        set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                         return;
                     }
                     let cursor = val.len();
                     let index = if is_shift {
                         let i = opts.len() - 1;
-                        let new = tab_replace(&val[..cursor], &opts[i]);
+                        let new = tab_replace(&val[..cursor], &opts[i].0);
                         el.set_value(&new);
+                        set_current_input.set(new.clone());
+                        set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                         Some(i)
                     } else {
                         None
@@ -320,6 +445,25 @@ pub fn Header() -> impl IntoView {
                         opts: opts.into(),
                         index,
                     }));
+                }
+            }
+            "/" => {
+                // Special handling for '/' while tabbing on directories
+                if is_tabbing {
+                    let val = el.value();
+                    if val.ends_with('/') {
+                        // Current completion ends with '/', stop tabbing instead of adding another '/'
+                        ev.prevent_default();
+                        set_tab_state(None);
+                        return;
+                    }
+                }
+                // Default behavior for other cases
+                if is_tabbing {
+                    set_tab_state(None);
+                }
+                if is_cycling_hist {
+                    set_hist_state(None);
                 }
             }
             "Shift" => {} // don't reset state on empty shift
@@ -334,44 +478,81 @@ pub fn Header() -> impl IntoView {
         }
     };
 
-    let auto_comp_item = |s: &str, active: bool| {
-        let is_dir = s.ends_with("/");
-        let is_ex = s.ends_with("*");
-        let s = if !active && (is_dir || is_ex) {
-            s[..s.len() - 1].to_string()
-        } else {
-            s.to_owned()
-        };
-        view! {
-            <span class=if active {
-                "bg-white text-black"
+    let auto_comp_item = {
+        move |item: &DirContentItem, active: bool| {
+            let s = &item.0;
+            let target = &item.1;
+            let is_dir = matches!(target, Target::Dir(_));
+            let is_ex = target.is_executable();
+            let has_suffix = s.ends_with("/") || s.ends_with("*");
+
+            let s_display = if !active && has_suffix {
+                s[..s.len() - 1].to_string()
             } else {
-                ""
-            }>
-                {if !active && is_dir {
-                    EitherOf3::A(
-                        view! {
-                            <span class="text-blue">{s}</span>
-                            "/"
-                        },
-                    )
-                } else if !active && is_ex {
-                    EitherOf3::B(
-                        view! {
-                            <span class="text-green">{s}</span>
-                            "*"
-                        },
-                    )
-                } else {
-                    EitherOf3::C(s)
-                }}
-            </span>
+                s.to_owned()
+            };
+            let s_completion = s.to_owned();
+
+            let handle_click = {
+                let tab_replace = tab_replace;
+                let input_ref = input_ref;
+                let set_tab_state = set_tab_state;
+                let set_current_input = set_current_input;
+                move |_| {
+                    if let Some(el) = input_ref.get_untracked() {
+                        let current_val = el.value();
+                        let new_val = tab_replace(&current_val, &s_completion);
+                        el.set_value(&new_val);
+                        set_current_input.set(new_val); // Update cursor position
+                        set_tab_state(None);
+                        // Focus the input after completion
+                        let _ = el.focus();
+                    }
+                }
+            };
+
+            view! {
+                <span
+                    class=if active {
+                        "bg-cyan text-black px-2 py-1 rounded-sm shadow-md transition-all duration-150 cursor-pointer"
+                    } else {
+                        "hover:bg-brightBlack/50 px-2 py-1 rounded-sm transition-all duration-150 cursor-pointer hover:bg-cyan/20"
+                    }
+                    on:click=handle_click
+                >
+                    {if !active && is_dir {
+                        EitherOf3::A(
+                            view! {
+                                <span class="text-blue font-medium">{s_display}</span>
+                                <span class="text-muted">"/"</span>
+                            },
+                        )
+                    } else if !active && is_ex {
+                        EitherOf3::B(
+                            view! {
+                                <span class="text-green font-medium">{s_display}</span>
+                                <span class="text-muted">"*"</span>
+                            },
+                        )
+                    } else {
+                        EitherOf3::C(
+                            view! {
+                                <span class=if active {
+                                    "font-medium"
+                                } else {
+                                    "text-foreground"
+                                }>{s_display}</span>
+                            },
+                        )
+                    }}
+                </span>
+            }
         }
     };
 
     view! {
-        <header class="shadow-lg">
-            <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <header class="shadow-lg border-b border-muted/30">
+            <div class="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
                 {move || {
                     let history = output_history.get();
                     let views = {
@@ -383,14 +564,16 @@ pub fn Header() -> impl IntoView {
                     } else {
                         Some(
                             view! {
-                                <div class="flex flex-col-reverse max-h-[480px] overflow-y-auto mb-2 p-2 rounded-md">
-                                    <pre class="whitespace-pre-wrap">{views}</pre>
+                                <div class="flex flex-col-reverse max-h-[480px] overflow-y-auto mb-2 p-3 rounded-md bg-black/20 border border-muted/30 backdrop-blur-sm">
+                                    <pre class="whitespace-pre-wrap terminal-output leading-tight">
+                                        {views}
+                                    </pre>
                                 </div>
                             },
                         )
                     }
-                }} <div class="flex flex-wrap items-center justify-between">
-                    <div class="text-2xl font-bold mr-4">
+                }} <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div class="text-lg sm:text-xl lg:text-2xl font-bold min-w-0 flex-shrink-0">
                         {move || {
                             let err = is_err.get();
                             let pathname = use_location().pathname.get();
@@ -400,7 +583,7 @@ pub fn Header() -> impl IntoView {
 
                     </div>
                     <form
-                        class="flex-1 min-w-64"
+                        class="flex-1 min-w-0 sm:min-w-64"
                         on:submit=move |ev| {
                             ev.prevent_default();
                             let el = if let Some(el) = input_ref.get_untracked() {
@@ -411,53 +594,131 @@ pub fn Header() -> impl IntoView {
                             };
                             handle_cmd(el.value(), false);
                             el.set_value("");
+                            set_current_input.set(String::new());
+                            set_cursor_position.set(0);
+                            set_ghost_text.set(None);
                         }
                     >
-                        <div class="relative">
+                        <div class="relative group">
                             <input
                                 node_ref=input_ref
                                 on:keydown=keydown_handler
+                                on:input=input_handler
+                                on:keyup=move |_| {
+                                    if let Some(input_el) = input_ref.get_untracked() {
+                                        if let Some(pos) = input_el
+                                            .selection_start()
+                                            .unwrap_or(None)
+                                        {
+                                            set_cursor_position.set(pos as usize);
+                                        }
+                                    }
+                                }
+                                on:click=move |_| {
+                                    if let Some(input_el) = input_ref.get_untracked() {
+                                        if let Some(pos) = input_el
+                                            .selection_start()
+                                            .unwrap_or(None)
+                                        {
+                                            set_cursor_position.set(pos as usize);
+                                        }
+                                    }
+                                }
                                 type="text"
                                 placeholder="Type a command (try 'help')"
-                                // autocorrect="off"
                                 autocapitalize="none"
-                                class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-brightBlack bg-background text-foreground"
+                                aria-label="Terminal command input"
+                                aria-describedby="terminal-help"
+                                class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-cyan bg-background text-foreground placeholder-muted transition-all duration-200 ease-out hover:border-subtle focus:border-cyan focus:shadow-lg focus:shadow-cyan/20 font-mono caret-transparent empty-placeholder"
                             />
+                            <div id="terminal-help" class="sr-only">
+                                "Type terminal commands like 'help', 'ls', 'cd /blog', or 'neofetch'. Use Tab for autocomplete and arrow keys for history. Right arrow to accept suggestions."
+                            </div>
+                            {}
+                            <div class="absolute inset-y-0 left-0 px-4 py-2 pointer-events-none overflow-hidden flex items-center text-foreground terminal-overlay whitespace-nowrap">
+                                {move || {
+                                    let curr = current_input.get();
+                                    let cursor_pos = cursor_position.get();
+                                    if curr.is_empty() {
+
+                                        // Empty input, show cursor at start
+                                        view! {
+                                            <span class="relative empty-placeholder">
+                                                <span class="absolute terminal-block-cursor bg-cyan font-mono">
+                                                    " "
+                                                </span>
+                                            </span>
+                                        }
+                                            .into_any()
+                                    } else {
+                                        let before_cursor = &curr[..cursor_pos.min(curr.len())];
+                                        let after_cursor = &curr[cursor_pos.min(curr.len())..];
+                                        // Split text at cursor position
+
+                                        view! {
+                                            <>
+                                                <span class="invisible font-mono whitespace-pre empty-placeholder">
+                                                    {before_cursor}
+                                                </span>
+                                                <span class="relative empty-placeholder">
+                                                    <span class="absolute terminal-block-cursor bg-cyan font-mono">
+                                                        " "
+                                                    </span>
+                                                </span>
+                                                <span class="invisible font-mono whitespace-pre empty-placeholder">
+                                                    {after_cursor}
+                                                </span>
+                                                {move || {
+                                                    if cursor_position.get() >= current_input.get().len() {
+                                                        // Only show ghost text if cursor is at the end
+                                                        view! {
+                                                            <span class="text-muted/70 font-mono whitespace-pre empty-placeholder">
+                                                                {ghost_text.get().unwrap_or_default()}
+                                                            </span>
+                                                        }
+                                                            .into_any()
+                                                    } else {
+                                                        view! { <span></span> }.into_any()
+                                                    }
+                                                }}
+                                            </>
+                                        }
+                                            .into_any()
+                                    }
+                                }}
+                            </div>
+                            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                <span class="text-muted text-sm opacity-60 group-hover:opacity-80 transition-opacity duration-200">
+                                    "▶"
+                                </span>
+                            </div>
                         </div>
                     </form>
                     <nav></nav>
                 </div>
                 {move || {
                     let tab_state = tab_state.get();
-                    if tab_state.is_none() {
-                        None
-                    } else {
-                        Some(
+                    tab_state
+                        .map(|ts| {
+                            let selected = ts
+                                .opts
+                                .iter()
+                                .enumerate()
+                                .find_map(|(vi, item)| {
+                                    if Some(vi) == ts.index { Some(item.to_owned()) } else { None }
+                                });
+                            let render_func = move |item: DirContentItem| {
+                                let is_sel = selected.as_ref().map(|s| &s.0) == Some(&item.0);
+                                auto_comp_item(&item, is_sel).into_any()
+                            };
                             view! {
-                                <div class="mt-2 p-2 rounded-md">
-                                    <pre class="whitespace-pre-wrap">
-                                        {tab_state
-                                            .map(|ts| {
-                                                let selected = ts
-                                                    .opts
-                                                    .iter()
-                                                    .enumerate()
-                                                    .find_map(|(vi, s)| {
-                                                        if Some(vi) == ts.index { Some(s.to_owned()) } else { None }
-                                                    });
-                                                let render_func = move |s: String| {
-                                                    let is_sel = Some(&s) == selected.as_ref();
-                                                    auto_comp_item(&s, is_sel).into_any()
-                                                };
-                                                view! {
-                                                    <ColumnarView items=ts.opts.to_vec() render_func />
-                                                }
-                                            })}
+                                <div class="mt-2 p-3 rounded-md bg-black/30 border border-muted/40 backdrop-blur-sm">
+                                    <pre class="whitespace-pre-wrap terminal-output">
+                                        <ColumnarView items=ts.opts.to_vec() render_func />
                                     </pre>
                                 </div>
-                            },
-                        )
-                    }
+                            }
+                        })
                 }}
             </div>
         </header>
@@ -483,7 +744,7 @@ fn Ps1(is_err: bool, path: String, with_links: bool) -> impl IntoView {
         } else {
             Either::Right(path_git)
         }}
-        ""
+        " "
         <span class="text-yellow">"✗"</span>
     }
 }

@@ -26,7 +26,7 @@ fn Resume() -> impl IntoView {
     view! {
         <div
             id="resume"
-            class="grid max-w-4xl min-h-[inherit] grid-cols-1 md:grid-cols-3 p-8 bg-[#FFFFFF] text-background leading-snug"
+            class="grid max-w-4xl min-h-[inherit] grid-cols-1 md:grid-cols-3 p-8 bg-[#FFFFFF] text-background leading-snug shadow-2xl rounded-lg border border-muted/20"
         >
             <Sidebar />
             <Experience />
