@@ -36,17 +36,8 @@ fn MobileFloatingButton(on_click: impl Fn() + 'static) -> impl IntoView {
         >
             // Always-visible directional caret, but refined
             <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <svg
-                    width="22"
-                    height="14"
-                    viewBox="0 0 22 14"
-                    fill="none"
-                    class="text-cyan/70"
-                >
-                    <path
-                        d="M11 2L4 9L6 11L11 6L16 11L18 9L11 2Z"
-                        fill="currentColor"
-                    />
+                <svg width="22" height="14" viewBox="0 0 22 14" fill="none" class="text-cyan/70">
+                    <path d="M11 2L4 9L6 11L11 6L16 11L18 9L11 2Z" fill="currentColor" />
                 </svg>
             </div>
 
@@ -115,20 +106,14 @@ fn InputSection(
                         }
                         on:keyup=move |_| {
                             if let Some(input_el) = input_ref.get_untracked() {
-                                if let Some(pos) = input_el
-                                    .selection_start()
-                                    .unwrap_or(None)
-                                {
+                                if let Some(pos) = input_el.selection_start().unwrap_or(None) {
                                     set_cursor_position.set(pos as usize);
                                 }
                             }
                         }
                         on:click=move |_| {
                             if let Some(input_el) = input_ref.get_untracked() {
-                                if let Some(pos) = input_el
-                                    .selection_start()
-                                    .unwrap_or(None)
-                                {
+                                if let Some(pos) = input_el.selection_start().unwrap_or(None) {
                                     set_cursor_position.set(pos as usize);
                                 }
                             }
@@ -863,31 +848,29 @@ pub fn Header() -> impl IntoView {
 
     view! {
         <>
-            <header
-                node_ref=header_ref
-                class="shadow-lg border-b border-muted/30"
-            >
-            <div class="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
-                {move || {
-                    let history = output_history.get();
-                    let views = {
-                        let history = history.lock().expect("should be able to acquire lock");
-                        history.iter().map(|s| s()).collect_view()
-                    };
-                    if views.is_empty() {
-                        None
-                    } else {
-                        Some(
-                            view! {
-                                <div class="flex flex-col-reverse max-h-[480px] overflow-y-auto mb-2 p-3 rounded-md bg-black/20 border border-muted/30 backdrop-blur-sm">
-                                    <pre class="whitespace-pre-wrap terminal-output leading-tight">
-                                        {views}
-                                    </pre>
-                                </div>
-                            },
-                        )
-                    }
-                }} <InputSection
+            <header node_ref=header_ref class="shadow-lg border-b border-muted/30">
+                <div class="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+                    {move || {
+                        let history = output_history.get();
+                        let views = {
+                            let history = history.lock().expect("should be able to acquire lock");
+                            history.iter().map(|s| s()).collect_view()
+                        };
+                        if views.is_empty() {
+                            None
+                        } else {
+                            Some(
+                                view! {
+                                    <div class="flex flex-col-reverse max-h-[480px] overflow-y-auto mb-2 p-3 rounded-md bg-black/20 border border-muted/30 backdrop-blur-sm">
+                                        <pre class="whitespace-pre-wrap terminal-output leading-tight">
+                                            {views}
+                                        </pre>
+                                    </div>
+                                },
+                            )
+                        }
+                    }}
+                    <InputSection
                         input_ref=input_ref
                         input_value=input_value
                         set_input_value=set_input_value
@@ -900,75 +883,81 @@ pub fn Header() -> impl IntoView {
                         submit_handler=shared_submit_handler
                         aria_describedby="terminal-help"
                     />
-                {move || {
-                    let tab_state = tab_state.get();
-                    tab_state
-                        .map(|ts| {
-                            let selected = ts
-                                .opts
-                                .iter()
-                                .enumerate()
-                                .find_map(|(vi, item)| {
-                                    if Some(vi) == ts.index { Some(item.to_owned()) } else { None }
-                                });
-                            let render_func = move |item: DirContentItem| {
-                                let is_sel = selected.as_ref().map(|s| &s.0) == Some(&item.0);
-                                auto_comp_item(&item, is_sel).into_any()
-                            };
-                            view! {
-                                <div class="mt-2 p-3 rounded-md bg-black/30 border border-muted/40 backdrop-blur-sm">
-                                    <pre class="whitespace-pre-wrap terminal-output">
-                                        <ColumnarView items=ts.opts.to_vec() render_func />
-                                    </pre>
-                                </div>
-                            }
-                        })
-                }}
-            </div>
+                    {move || {
+                        let tab_state = tab_state.get();
+                        tab_state
+                            .map(|ts| {
+                                let selected = ts
+                                    .opts
+                                    .iter()
+                                    .enumerate()
+                                    .find_map(|(vi, item)| {
+                                        if Some(vi) == ts.index {
+                                            Some(item.to_owned())
+                                        } else {
+                                            None
+                                        }
+                                    });
+                                let render_func = move |item: DirContentItem| {
+                                    let is_sel = selected.as_ref().map(|s| &s.0) == Some(&item.0);
+                                    auto_comp_item(&item, is_sel).into_any()
+                                };
+                                view! {
+                                    <div class="mt-2 p-3 rounded-md bg-black/30 border border-muted/40 backdrop-blur-sm">
+                                        <pre class="whitespace-pre-wrap terminal-output">
+                                            <ColumnarView items=ts.opts.to_vec() render_func />
+                                        </pre>
+                                    </div>
+                                }
+                            })
+                    }}
+                </div>
             </header>
 
             // Floating overlay - mobile button or desktop header
             {move || {
                 let sticky = is_sticky.get();
                 let mobile = is_mobile.get();
-
                 if !sticky {
-                    // Not scrolled, don't show anything
                     EitherOf3::A(())
                 } else if mobile {
-                    // Mobile: show floating button
-                    EitherOf3::B(view! {
-                        <MobileFloatingButton
-                            on_click=move || {
+                    EitherOf3::B(
+
+                        // Not scrolled, don't show anything
+                        // Mobile: show floating button
+                        view! {
+                            <MobileFloatingButton on_click=move || {
                                 scroll_to_top();
                                 #[cfg(feature = "hydrate")]
                                 if let Some(static_input) = input_ref.get_untracked() {
                                     let _ = static_input.focus();
                                 }
-                            }
-                        />
-                    })
+                            } />
+                        },
+                    )
                 } else {
-                    // Desktop: show full floating header
-                    EitherOf3::C(view! {
-                        <div class="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md shadow-lg border-b border-muted/30">
-                            <div class="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
-                                <InputSection
-                                    input_ref=floating_input_ref
-                                    input_value=input_value
-                                    set_input_value=set_input_value
-                                    cursor_position=cursor_position
-                                    set_cursor_position=set_cursor_position
-                                    ghost_text=ghost_text
-                                    is_err=is_err
-                                    keydown_handler=keydown_handler
-                                    input_handler=input_handler
-                                    submit_handler=floating_submit_handler
-                                    aria_describedby="terminal-help-floating"
-                                />
+                    EitherOf3::C(
+                        // Desktop: show full floating header
+                        view! {
+                            <div class="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md shadow-lg border-b border-muted/30">
+                                <div class="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+                                    <InputSection
+                                        input_ref=floating_input_ref
+                                        input_value=input_value
+                                        set_input_value=set_input_value
+                                        cursor_position=cursor_position
+                                        set_cursor_position=set_cursor_position
+                                        ghost_text=ghost_text
+                                        is_err=is_err
+                                        keydown_handler=keydown_handler
+                                        input_handler=input_handler
+                                        submit_handler=floating_submit_handler
+                                        aria_describedby="terminal-help-floating"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    })
+                        },
+                    )
                 }
             }}
         </>
