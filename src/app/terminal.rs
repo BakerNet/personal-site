@@ -260,7 +260,7 @@ impl Terminal {
                 }
                 self.history.make_contiguous();
                 // For non-clear history commands, update the command with current history before executing
-                HistoryCommand::new(&self.history.as_slices().0).execute(path, args, None, true)
+                HistoryCommand::new(self.history.as_slices().0).execute(path, args, None, true)
             }
             Command::Unknown => {
                 let unknown_cmd =

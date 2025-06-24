@@ -59,14 +59,12 @@ pub fn parse_multitarget(args: Vec<&str>) -> (Vec<char>, Vec<&str>) {
             if s.starts_with("-") {
                 let mut opts = s.chars().filter(|c| *c != '-').collect::<Vec<char>>();
                 options.append(&mut opts);
+            } else if s.starts_with("~/") {
+                t.push(&s[1..]);
+            } else if s == "~" {
+                t.push("/");
             } else {
-                if s.starts_with("~/") {
-                    t.push(&s[1..]);
-                } else if s == "~" {
-                    t.push("/");
-                } else {
-                    t.push(s);
-                }
+                t.push(s);
             }
             (options, t)
         },

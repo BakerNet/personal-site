@@ -25,6 +25,183 @@ use crate::blog::Assets;
 use super::terminal::fs::{DirContentItem, Target};
 use super::terminal::{ColumnarView, CommandRes, Terminal};
 
+#[component]
+fn MobileFloatingButton(on_click: impl Fn() + 'static) -> impl IntoView {
+    view! {
+        <button
+            class="fixed bottom-6 left-6 z-50 group active:scale-95"
+            on:click=move |_| on_click()
+            aria-label="Return to terminal input"
+            title="Return to terminal input"
+        >
+            // Always-visible directional caret, but refined
+            <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <svg
+                    width="22"
+                    height="14"
+                    viewBox="0 0 22 14"
+                    fill="none"
+                    class="text-cyan/70"
+                >
+                    <path
+                        d="M11 2L4 9L6 11L11 6L16 11L18 9L11 2Z"
+                        fill="currentColor"
+                    />
+                </svg>
+            </div>
+
+            // Main button optimized for touch
+            <div class="relative w-14 h-14 bg-background/95 border-2 border-cyan text-cyan rounded-2xl shadow-lg backdrop-blur-md transition-all duration-150 ease-out active:shadow-xl active:shadow-cyan/20 focus:outline-none focus:ring-2 focus:ring-cyan focus:ring-offset-2 focus:ring-offset-background">
+                <div class="flex items-center justify-center w-full h-full">
+                    <span class="text-lg font-mono font-bold">">_"</span>
+                </div>
+            </div>
+        </button>
+    }
+}
+
+#[component]
+fn InputSection(
+    input_ref: NodeRef<html::Input>,
+    input_value: ReadSignal<String>,
+    set_input_value: WriteSignal<String>,
+    cursor_position: ReadSignal<usize>,
+    set_cursor_position: WriteSignal<usize>,
+    ghost_text: ReadSignal<Option<String>>,
+    is_err: ReadSignal<bool>,
+    keydown_handler: impl Fn(KeyboardEvent) + 'static,
+    input_handler: impl Fn(Event) + 'static,
+    submit_handler: impl Fn() + 'static,
+    aria_describedby: &'static str,
+) -> impl IntoView {
+    let dir_from_pathname = |pathname: String| {
+        let dir = pathname
+            .split("/")
+            .last()
+            .expect("There should be at least one / in path");
+        if dir.is_empty() {
+            "hansbaker.com".to_string()
+        } else {
+            dir.to_string()
+        }
+    };
+
+    view! {
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div class="text-lg sm:text-xl lg:text-2xl font-bold min-w-0 flex-shrink-0">
+                {move || {
+                    let err = is_err.get();
+                    let pathname = use_location().pathname.get();
+                    let dir = dir_from_pathname(pathname);
+                    view! { <Ps1 is_err=err path=dir with_links=true /> }
+                }}
+            </div>
+            <form
+                class="flex-1 min-w-0 sm:min-w-64"
+                on:submit=move |ev| {
+                    ev.prevent_default();
+                    submit_handler();
+                }
+            >
+                <div class="relative group">
+                    <input
+                        node_ref=input_ref
+                        prop:value=move || input_value.get()
+                        on:keydown=keydown_handler
+                        on:input=move |ev| {
+                            let value = event_target_value(&ev);
+                            set_input_value.set(value);
+                            input_handler(ev);
+                        }
+                        on:keyup=move |_| {
+                            if let Some(input_el) = input_ref.get_untracked() {
+                                if let Some(pos) = input_el
+                                    .selection_start()
+                                    .unwrap_or(None)
+                                {
+                                    set_cursor_position.set(pos as usize);
+                                }
+                            }
+                        }
+                        on:click=move |_| {
+                            if let Some(input_el) = input_ref.get_untracked() {
+                                if let Some(pos) = input_el
+                                    .selection_start()
+                                    .unwrap_or(None)
+                                {
+                                    set_cursor_position.set(pos as usize);
+                                }
+                            }
+                        }
+                        type="text"
+                        placeholder="Type a command (try 'help')"
+                        autocapitalize="none"
+                        aria-label="Terminal command input"
+                        aria-describedby=aria_describedby
+                        class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-cyan bg-background text-foreground placeholder-muted transition-all duration-200 ease-out hover:border-subtle focus:border-cyan focus:shadow-lg focus:shadow-cyan/20 font-mono caret-transparent empty-placeholder"
+                    />
+                    <div id=aria_describedby class="sr-only">
+                        "Type terminal commands like 'help', 'ls', 'cd /blog', or 'neofetch'. Use Tab for autocomplete and arrow keys for history. Right arrow to accept suggestions."
+                    </div>
+                    <div class="absolute inset-y-0 left-0 px-4 py-2 pointer-events-none overflow-hidden flex items-center text-foreground terminal-overlay whitespace-nowrap">
+                        {move || {
+                            let curr = input_value.get();
+                            let cursor_pos = cursor_position.get();
+                            if curr.is_empty() {
+                                view! {
+                                    <span class="relative empty-placeholder">
+                                        <span class="absolute terminal-block-cursor bg-cyan font-mono">
+                                            " "
+                                        </span>
+                                    </span>
+                                }
+                                    .into_any()
+                            } else {
+                                let before_cursor = &curr[..cursor_pos.min(curr.len())];
+                                let after_cursor = &curr[cursor_pos.min(curr.len())..];
+                                view! {
+                                    <>
+                                        <span class="invisible font-mono whitespace-pre empty-placeholder">
+                                            {before_cursor}
+                                        </span>
+                                        <span class="relative empty-placeholder">
+                                            <span class="absolute terminal-block-cursor bg-cyan font-mono">
+                                                " "
+                                            </span>
+                                        </span>
+                                        <span class="invisible font-mono whitespace-pre empty-placeholder">
+                                            {after_cursor}
+                                        </span>
+                                        {move || {
+                                            if cursor_position.get() >= input_value.get().len() {
+                                                view! {
+                                                    <span class="text-muted/70 font-mono whitespace-pre empty-placeholder">
+                                                        {ghost_text.get().unwrap_or_default()}
+                                                    </span>
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! { <span></span> }.into_any()
+                                            }
+                                        }}
+                                    </>
+                                }
+                                    .into_any()
+                            }
+                        }}
+                    </div>
+                    <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                        <span class="text-muted text-sm opacity-60 group-hover:opacity-80 transition-opacity duration-200">
+                            "▶"
+                        </span>
+                    </div>
+                </div>
+            </form>
+            <nav></nav>
+        </div>
+    }
+}
+
 #[derive(Debug, Clone)]
 struct TabState {
     cursor: usize,
@@ -46,14 +223,45 @@ pub fn Header() -> impl IntoView {
         .collect::<Vec<_>>();
     let terminal = StoredValue::new(Arc::new(Mutex::new(Terminal::new(&blog_posts, None))));
     let input_ref = NodeRef::<html::Input>::new();
+    let floating_input_ref = NodeRef::<html::Input>::new();
+    let header_ref = NodeRef::<html::Header>::new();
     let (output_history, set_output_history) =
         signal(Arc::new(Mutex::new(Vec::<ChildrenFn>::new())));
     let (is_err, set_is_err) = signal(false);
     let (tab_state, set_tab_state) = signal(None::<TabState>);
     let (hist_state, set_hist_state) = signal(None::<HistState>);
-    let (current_input, set_current_input) = signal(String::new());
+    let (input_value, set_input_value) = signal(String::new());
     let (cursor_position, set_cursor_position) = signal(0usize);
     let (ghost_text, set_ghost_text) = signal(None::<String>);
+    #[allow(unused_variables)]
+    let (is_sticky, set_is_sticky) = signal(false);
+
+    // Mobile detection (narrow screens < 768px OR short screens < 600px)
+    #[allow(unused_variables)]
+    let (is_mobile, set_is_mobile) = signal(false);
+
+    #[cfg(feature = "hydrate")]
+    {
+        // Check initial screen size
+        let check_mobile_size = move || {
+            let win = window();
+            if let (Ok(width), Ok(height)) = (win.inner_width(), win.inner_height()) {
+                if let (Some(width), Some(height)) = (width.as_f64(), height.as_f64()) {
+                    // Mobile if narrow (< 768px) OR short (< 600px) - covers landscape phones
+                    let is_mobile_size = width < 768.0 || height < 600.0;
+                    set_is_mobile.set(is_mobile_size);
+                }
+            }
+        };
+
+        check_mobile_size();
+
+        // Listen for window resize
+        let resize_handle = window_event_listener(leptos::ev::resize, move |_| {
+            check_mobile_size();
+        });
+        on_cleanup(move || resize_handle.remove());
+    }
 
     #[cfg(feature = "hydrate")]
     let (cmd_history, set_cmd_history, _) =
@@ -72,6 +280,31 @@ pub fn Header() -> impl IntoView {
         },
         true,
     );
+
+    // Scroll detection for floating header
+    #[cfg(feature = "hydrate")]
+    {
+        let handle = window_event_listener(leptos::ev::scroll, move |_| {
+            if let Some(input_el) = input_ref.get() {
+                // Check if the original input field is scrolled off the top
+                let input_rect = input_el.get_bounding_client_rect();
+
+                // Show floating header when input would be off-screen
+                // Small buffer to make transition feel natural
+                let should_be_sticky = input_rect.top() < 10.0;
+                set_is_sticky.set(should_be_sticky);
+            }
+        });
+        on_cleanup(move || handle.remove());
+    }
+
+    // Function to scroll to top
+    let scroll_to_top = move || {
+        #[cfg(feature = "hydrate")]
+        {
+            window().scroll_to_with_x_and_y(0.0, 0.0);
+        }
+    };
 
     let dir_from_pathname = |pathname: String| {
         let dir = pathname
@@ -173,6 +406,37 @@ pub fn Header() -> impl IntoView {
         });
     };
 
+    // Shared submit handler
+    let shared_submit_handler = move || {
+        // Scroll to top if in sticky mode to show output
+        if is_sticky.get_untracked() {
+            scroll_to_top();
+        }
+        handle_cmd(input_value.get_untracked(), false);
+        // Clear input
+        set_input_value(String::new());
+        set_cursor_position(0);
+        set_ghost_text(None);
+    };
+
+    // Shared floating submit handler
+    let floating_submit_handler = move || {
+        // Scroll to top when submitting from floating header
+        scroll_to_top();
+
+        // Focus the static input after scroll
+        #[cfg(feature = "hydrate")]
+        if let Some(static_input) = input_ref.get_untracked() {
+            let _ = static_input.focus();
+        }
+
+        handle_cmd(input_value.get_untracked(), false);
+        // Clear input
+        set_input_value(String::new());
+        set_cursor_position(0);
+        set_ghost_text(None);
+    };
+
     let tab_replace = move |val: &str, new: &str| {
         let new = if let Some(s) = new.strip_suffix("*") {
             s
@@ -192,9 +456,8 @@ pub fn Header() -> impl IntoView {
     // Handle input changes for ghost text suggestions
     #[cfg(feature = "hydrate")]
     let input_handler = {
-        move |ev: Event| {
-            let input_value = event_target_value(&ev);
-            set_current_input.set(input_value.clone());
+        move |_ev: Event| {
+            let input_val = input_value.get_untracked();
 
             // Track cursor position
             if let Some(input_el) = input_ref.get_untracked() {
@@ -203,16 +466,16 @@ pub fn Header() -> impl IntoView {
                 }
             }
 
-            if !input_value.is_empty() {
+            if !input_val.is_empty() {
                 let history = cmd_history.get_untracked();
                 // Find the first command in history that starts with current input
                 if let Some(suggestion) = history
                     .iter()
                     .rev()
-                    .find(|cmd| cmd.starts_with(&input_value) && cmd.len() > input_value.len())
+                    .find(|cmd| cmd.starts_with(&input_val) && cmd.len() > input_val.len())
                 {
                     // Show the full remaining part of the suggestion
-                    let remaining = &suggestion[input_value.len()..];
+                    let remaining = &suggestion[input_val.len()..];
                     set_ghost_text.set(Some(remaining.to_string()));
                 } else {
                     set_ghost_text.set(None);
@@ -223,9 +486,51 @@ pub fn Header() -> impl IntoView {
         }
     };
 
+    // Helper function to handle scroll and focus transfer from floating to static input
+    let handle_scroll_and_focus_transfer = move || {
+        // Check if we're in floating mode and need to transfer focus
+        #[allow(unused_variables)]
+        let is_floating_focused = floating_input_ref
+            .get_untracked()
+            .map(|floating_el| {
+                #[cfg(feature = "hydrate")]
+                {
+                    document().active_element().as_ref() == Some(floating_el.as_ref())
+                }
+                #[cfg(not(feature = "hydrate"))]
+                {
+                    false
+                }
+            })
+            .unwrap_or(false);
+
+        // Scroll to top if in sticky mode
+        if is_sticky.get_untracked() {
+            scroll_to_top();
+
+            // If we were focused on floating input, transfer focus to static input
+            if is_floating_focused {
+                #[cfg(feature = "hydrate")]
+                if let Some(static_input) = input_ref.get_untracked() {
+                    let _ = static_input.focus();
+                }
+            }
+        }
+    };
+
     let keydown_handler = move |ev: KeyboardEvent| {
-        let el = if let Some(el) = input_ref.get_untracked() {
-            el
+        // Get the currently focused input (original or floating)
+        let el = if let Some(floating_el) = floating_input_ref.get_untracked() {
+            if document().active_element().as_ref() == Some(floating_el.as_ref()) {
+                floating_el
+            } else if let Some(original_el) = input_ref.get_untracked() {
+                original_el
+            } else {
+                set_is_err(true);
+                return;
+            }
+        } else if let Some(original_el) = input_ref.get_untracked() {
+            original_el
         } else {
             set_is_err(true);
             return;
@@ -233,7 +538,7 @@ pub fn Header() -> impl IntoView {
         if ev.ctrl_key() && ev.key() == "c" {
             handle_cmd(el.value(), true);
             el.set_value("");
-            set_current_input(String::new());
+            set_input_value(String::new());
             set_cursor_position(0);
             set_hist_state(None);
             set_tab_state(None);
@@ -242,7 +547,7 @@ pub fn Header() -> impl IntoView {
         if ev.ctrl_key() && ev.key() == "l" {
             handle_cmd("clear".to_string(), false);
             el.set_value("");
-            set_current_input(String::new());
+            set_input_value(String::new());
             set_cursor_position(0);
             set_hist_state(None);
             set_tab_state(None);
@@ -263,6 +568,8 @@ pub fn Header() -> impl IntoView {
                 if is_tabbing {
                     set_tab_state(None);
                 }
+
+                handle_scroll_and_focus_transfer();
                 let current_val = el.value();
                 let HistState {
                     cursor,
@@ -289,7 +596,7 @@ pub fn Header() -> impl IntoView {
                 if index == 0 {
                     return;
                 }
-                
+
                 // Find the next different command going backwards
                 let mut new_val = &(*opts)[index - 1];
                 index -= 1;
@@ -297,14 +604,14 @@ pub fn Header() -> impl IntoView {
                     index -= 1;
                     new_val = &(*opts)[index];
                 }
-                
+
                 // If we only found duplicates all the way to the start, don't move
                 if new_val == &current_val && index == 0 {
                     return;
                 }
-                
+
                 el.set_value(new_val);
-                set_current_input.set(new_val.clone());
+                set_input_value.set(new_val.clone());
                 set_cursor_position.set(new_val.len()); // Set cursor to end of new value
                 set_hist_state(Some(HistState {
                     cursor,
@@ -318,6 +625,8 @@ pub fn Header() -> impl IntoView {
                 if is_tabbing {
                     set_tab_state(None);
                 }
+
+                handle_scroll_and_focus_transfer();
                 if !is_cycling_hist {
                     return;
                 }
@@ -328,26 +637,26 @@ pub fn Header() -> impl IntoView {
                     opts,
                     mut index,
                 } = hist_state.get_untracked().unwrap();
-                
+
                 // Find the next different command going forwards
                 index += 1;
                 while index < opts.len() && (*opts)[index] == current_val {
                     index += 1;
                 }
-                
+
                 if index >= opts.len() {
                     let val = el.value();
                     let truncated = &val[..cursor];
                     el.set_value(truncated);
-                    set_current_input.set(truncated.to_string());
+                    set_input_value.set(truncated.to_string());
                     set_cursor_position.set(truncated.len()); // Set cursor to end of truncated value
                     set_hist_state(None);
                     return;
                 }
-                
+
                 let new_val = &(*opts)[index];
                 el.set_value(new_val);
-                set_current_input.set(new_val.clone());
+                set_input_value.set(new_val.clone());
                 set_cursor_position.set(new_val.len()); // Set cursor to end of new value
                 set_hist_state(Some(HistState {
                     cursor,
@@ -359,18 +668,18 @@ pub fn Header() -> impl IntoView {
                 // Accept ghost text suggestion only if cursor is at end
                 let ghost = ghost_text.get_untracked();
                 let current_pos = cursor_position.get_untracked();
-                let current_input_val = current_input.get_untracked();
+                let input_value_val = input_value.get_untracked();
 
                 if ghost.is_some()
                     && !is_tabbing
                     && !is_cycling_hist
-                    && current_pos >= current_input_val.len()
+                    && current_pos >= input_value_val.len()
                 {
                     ev.prevent_default();
                     let current_val = el.value();
                     let new_val = format!("{current_val}{}", ghost.unwrap());
                     el.set_value(&new_val);
-                    set_current_input.set(new_val.clone());
+                    set_input_value.set(new_val.clone());
                     set_cursor_position.set(new_val.len()); // Set cursor to end after accepting ghost text
                     set_ghost_text.set(None);
                 }
@@ -382,6 +691,8 @@ pub fn Header() -> impl IntoView {
                 }
                 ev.prevent_default();
                 set_ghost_text.set(None); // Clear ghost text during tab completion
+
+                handle_scroll_and_focus_transfer();
                 let is_shift = ev.shift_key();
                 if is_tabbing {
                     // cycle tab options
@@ -400,7 +711,7 @@ pub fn Header() -> impl IntoView {
                     };
                     let new = tab_replace(&val[..cursor], &opts[new_index].0);
                     el.set_value(&new);
-                    set_current_input.set(new.clone());
+                    set_input_value.set(new.clone());
                     set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                     set_tab_state(Some(TabState {
                         cursor,
@@ -425,7 +736,7 @@ pub fn Header() -> impl IntoView {
                     if opts.len() == 1 {
                         let new = tab_replace(&val, &opts[0].0);
                         el.set_value(&new);
-                        set_current_input.set(new.clone());
+                        set_input_value.set(new.clone());
                         set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                         return;
                     }
@@ -434,7 +745,7 @@ pub fn Header() -> impl IntoView {
                         let i = opts.len() - 1;
                         let new = tab_replace(&val[..cursor], &opts[i].0);
                         el.set_value(&new);
-                        set_current_input.set(new.clone());
+                        set_input_value.set(new.clone());
                         set_cursor_position.set(new.len()); // Set cursor to end after tab completion
                         Some(i)
                     } else {
@@ -497,13 +808,13 @@ pub fn Header() -> impl IntoView {
                 let tab_replace = tab_replace;
                 let input_ref = input_ref;
                 let set_tab_state = set_tab_state;
-                let set_current_input = set_current_input;
+                let set_input_value = set_input_value;
                 move |_| {
                     if let Some(el) = input_ref.get_untracked() {
                         let current_val = el.value();
                         let new_val = tab_replace(&current_val, &s_completion);
                         el.set_value(&new_val);
-                        set_current_input.set(new_val); // Update cursor position
+                        set_input_value.set(new_val); // Update cursor position
                         set_tab_state(None);
                         // Focus the input after completion
                         let _ = el.focus();
@@ -551,7 +862,11 @@ pub fn Header() -> impl IntoView {
     };
 
     view! {
-        <header class="shadow-lg border-b border-muted/30">
+        <>
+            <header
+                node_ref=header_ref
+                class="shadow-lg border-b border-muted/30"
+            >
             <div class="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
                 {move || {
                     let history = output_history.get();
@@ -572,130 +887,19 @@ pub fn Header() -> impl IntoView {
                             },
                         )
                     }
-                }} <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                    <div class="text-lg sm:text-xl lg:text-2xl font-bold min-w-0 flex-shrink-0">
-                        {move || {
-                            let err = is_err.get();
-                            let pathname = use_location().pathname.get();
-                            let dir = dir_from_pathname(pathname);
-                            view! { <Ps1 is_err=err path=dir with_links=true /> }
-                        }}
-
-                    </div>
-                    <form
-                        class="flex-1 min-w-0 sm:min-w-64"
-                        on:submit=move |ev| {
-                            ev.prevent_default();
-                            let el = if let Some(el) = input_ref.get_untracked() {
-                                el
-                            } else {
-                                set_is_err(true);
-                                return;
-                            };
-                            handle_cmd(el.value(), false);
-                            el.set_value("");
-                            set_current_input.set(String::new());
-                            set_cursor_position.set(0);
-                            set_ghost_text.set(None);
-                        }
-                    >
-                        <div class="relative group">
-                            <input
-                                node_ref=input_ref
-                                on:keydown=keydown_handler
-                                on:input=input_handler
-                                on:keyup=move |_| {
-                                    if let Some(input_el) = input_ref.get_untracked() {
-                                        if let Some(pos) = input_el
-                                            .selection_start()
-                                            .unwrap_or(None)
-                                        {
-                                            set_cursor_position.set(pos as usize);
-                                        }
-                                    }
-                                }
-                                on:click=move |_| {
-                                    if let Some(input_el) = input_ref.get_untracked() {
-                                        if let Some(pos) = input_el
-                                            .selection_start()
-                                            .unwrap_or(None)
-                                        {
-                                            set_cursor_position.set(pos as usize);
-                                        }
-                                    }
-                                }
-                                type="text"
-                                placeholder="Type a command (try 'help')"
-                                autocapitalize="none"
-                                aria-label="Terminal command input"
-                                aria-describedby="terminal-help"
-                                class="w-full px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-cyan bg-background text-foreground placeholder-muted transition-all duration-200 ease-out hover:border-subtle focus:border-cyan focus:shadow-lg focus:shadow-cyan/20 font-mono caret-transparent empty-placeholder"
-                            />
-                            <div id="terminal-help" class="sr-only">
-                                "Type terminal commands like 'help', 'ls', 'cd /blog', or 'neofetch'. Use Tab for autocomplete and arrow keys for history. Right arrow to accept suggestions."
-                            </div>
-                            {}
-                            <div class="absolute inset-y-0 left-0 px-4 py-2 pointer-events-none overflow-hidden flex items-center text-foreground terminal-overlay whitespace-nowrap">
-                                {move || {
-                                    let curr = current_input.get();
-                                    let cursor_pos = cursor_position.get();
-                                    if curr.is_empty() {
-
-                                        // Empty input, show cursor at start
-                                        view! {
-                                            <span class="relative empty-placeholder">
-                                                <span class="absolute terminal-block-cursor bg-cyan font-mono">
-                                                    " "
-                                                </span>
-                                            </span>
-                                        }
-                                            .into_any()
-                                    } else {
-                                        let before_cursor = &curr[..cursor_pos.min(curr.len())];
-                                        let after_cursor = &curr[cursor_pos.min(curr.len())..];
-                                        // Split text at cursor position
-
-                                        view! {
-                                            <>
-                                                <span class="invisible font-mono whitespace-pre empty-placeholder">
-                                                    {before_cursor}
-                                                </span>
-                                                <span class="relative empty-placeholder">
-                                                    <span class="absolute terminal-block-cursor bg-cyan font-mono">
-                                                        " "
-                                                    </span>
-                                                </span>
-                                                <span class="invisible font-mono whitespace-pre empty-placeholder">
-                                                    {after_cursor}
-                                                </span>
-                                                {move || {
-                                                    if cursor_position.get() >= current_input.get().len() {
-                                                        // Only show ghost text if cursor is at the end
-                                                        view! {
-                                                            <span class="text-muted/70 font-mono whitespace-pre empty-placeholder">
-                                                                {ghost_text.get().unwrap_or_default()}
-                                                            </span>
-                                                        }
-                                                            .into_any()
-                                                    } else {
-                                                        view! { <span></span> }.into_any()
-                                                    }
-                                                }}
-                                            </>
-                                        }
-                                            .into_any()
-                                    }
-                                }}
-                            </div>
-                            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                                <span class="text-muted text-sm opacity-60 group-hover:opacity-80 transition-opacity duration-200">
-                                    "▶"
-                                </span>
-                            </div>
-                        </div>
-                    </form>
-                    <nav></nav>
-                </div>
+                }} <InputSection
+                        input_ref=input_ref
+                        input_value=input_value
+                        set_input_value=set_input_value
+                        cursor_position=cursor_position
+                        set_cursor_position=set_cursor_position
+                        ghost_text=ghost_text
+                        is_err=is_err
+                        keydown_handler=keydown_handler
+                        input_handler=input_handler
+                        submit_handler=shared_submit_handler
+                        aria_describedby="terminal-help"
+                    />
                 {move || {
                     let tab_state = tab_state.get();
                     tab_state
@@ -721,7 +925,53 @@ pub fn Header() -> impl IntoView {
                         })
                 }}
             </div>
-        </header>
+            </header>
+
+            // Floating overlay - mobile button or desktop header
+            {move || {
+                let sticky = is_sticky.get();
+                let mobile = is_mobile.get();
+
+                if !sticky {
+                    // Not scrolled, don't show anything
+                    EitherOf3::A(())
+                } else if mobile {
+                    // Mobile: show floating button
+                    EitherOf3::B(view! {
+                        <MobileFloatingButton
+                            on_click=move || {
+                                scroll_to_top();
+                                #[cfg(feature = "hydrate")]
+                                if let Some(static_input) = input_ref.get_untracked() {
+                                    let _ = static_input.focus();
+                                }
+                            }
+                        />
+                    })
+                } else {
+                    // Desktop: show full floating header
+                    EitherOf3::C(view! {
+                        <div class="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md shadow-lg border-b border-muted/30">
+                            <div class="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4">
+                                <InputSection
+                                    input_ref=floating_input_ref
+                                    input_value=input_value
+                                    set_input_value=set_input_value
+                                    cursor_position=cursor_position
+                                    set_cursor_position=set_cursor_position
+                                    ghost_text=ghost_text
+                                    is_err=is_err
+                                    keydown_handler=keydown_handler
+                                    input_handler=input_handler
+                                    submit_handler=floating_submit_handler
+                                    aria_describedby="terminal-help-floating"
+                                />
+                            </div>
+                        </div>
+                    })
+                }
+            }}
+        </>
     }
 }
 
