@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use leptos::{either::*, prelude::*};
+use leptos::prelude::*;
 use leptos_router::components::*;
 
 use crate::app::terminal::fs::DirContentItem;
@@ -27,18 +27,23 @@ impl Executable for LsCommand {
         is_output_tty: bool,
     ) -> CommandRes {
         let mut all = false;
+        let mut long_format = false;
         let (options, mut target_paths) = parse_multitarget(args);
-        let invalid = options.iter().find(|c| **c != 'a');
+        let invalid = options.iter().find(|c| **c != 'a' && **c != 'l');
         if let Some(c) = invalid {
             let c = c.to_owned();
             let error_msg = format!(
                 r#"ls: invalid option -- '{c}'
-This version of ls only supports option 'a'"#
+This version of ls only supports options 'a' and 'l'"#
             );
             return CommandRes::new().with_error().with_stderr(error_msg);
         }
-        if !options.is_empty() {
-            all = true;
+        for option in &options {
+            match option {
+                'a' => all = true,
+                'l' => long_format = true,
+                _ => unreachable!("Invalid options should be caught above"),
+            }
         }
         if target_paths.is_empty() {
             target_paths = vec![""];
@@ -84,6 +89,7 @@ This version of ls only supports option 'a'"#
             let is_multi =
                 dir_targets.len() > 1 || !dir_targets.is_empty() && !file_targets.is_empty();
             let all_captured = all;
+            let long_format_captured = long_format;
             let path_owned = path.to_owned();
             result = result.with_stdout_view(Arc::new(move || {
                 let mut all_views = Vec::new();
@@ -95,6 +101,8 @@ This version of ls only supports option 'a'"#
                                 .map(|(s, t)| DirContentItem(s.to_string(), t.to_owned()))
                                 .collect(),
                             base: path_owned.clone(),
+                            long_format: long_format_captured,
+                            blog_post_count: posts.len(),
                         })
                         .into_any(),
                     );
@@ -119,6 +127,8 @@ This version of ls only supports option 'a'"#
                         LsView(LsViewProps {
                             items: d.contents(&posts, all_captured),
                             base: d.base(),
+                            long_format: long_format_captured,
+                            blog_post_count: posts.len(),
                         })
                         .into_any(),
                     );
@@ -137,7 +147,19 @@ This version of ls only supports option 'a'"#
                         if !stdout_text.is_empty() {
                             stdout_text.push('\n');
                         }
-                        stdout_text.push_str(f.name());
+                        if long_format {
+                            stdout_text.push_str(&format!(
+                                "{} {:2} {:8} {:8} {:>6} {}",
+                                target.full_permissions(),
+                                target.link_count(self.blog_posts.len()),
+                                target.owner(),
+                                target.group(),
+                                target.size(),
+                                f.name()
+                            ));
+                        } else {
+                            stdout_text.push_str(f.name());
+                        }
                     }
                 }
             }
@@ -156,7 +178,19 @@ This version of ls only supports option 'a'"#
                     if i > 0 || (!is_multi && !stdout_text.is_empty()) {
                         stdout_text.push('\n');
                     }
-                    stdout_text.push_str(item.text_content());
+                    if long_format {
+                        stdout_text.push_str(&format!(
+                            "{} {:2} {:8} {:8} {:>6} {}",
+                            item.1.full_permissions(),
+                            item.1.link_count(self.blog_posts.len()),
+                            item.1.owner(),
+                            item.1.group(),
+                            item.1.size(),
+                            item.text_content()
+                        ));
+                    } else {
+                        stdout_text.push_str(item.text_content());
+                    }
                 }
             }
 
@@ -170,36 +204,109 @@ This version of ls only supports option 'a'"#
 }
 
 #[component]
-fn LsView(items: Vec<DirContentItem>, base: String) -> impl IntoView {
+fn LsView(
+    items: Vec<DirContentItem>,
+    base: String,
+    #[prop(default = false)] long_format: bool,
+    #[prop(default = 0)] blog_post_count: usize,
+) -> impl IntoView {
     let dir_class = "text-blue";
     let ex_class = "text-green";
-    let render_func = {
-        move |s: DirContentItem| {
-            if matches!(s.1, Target::Dir(_)) {
-                let base = if base == "/" { "" } else { &base };
-                let href = if s.0 == "." {
-                    base.to_string()
-                } else {
-                    format!("{}/{}", base, s.0)
-                };
-                // note - adding extra space because trimming trailing '/'
-                EitherOf3::A(view! {
-                    <A href=href attr:class=dir_class>
-                        {s.text_content().to_string()}
-                    </A>
-                })
-            } else if s.1.is_executable() {
-                EitherOf3::B(view! { <span class=ex_class>{s.text_content()}</span> })
-            } else {
-                EitherOf3::C(view! { <span>{s.text_content()}</span> })
-            }
-            .into_any()
-        }
+
+    // Create modified items for long format display if needed
+    let display_items = if long_format {
+        items
+            .into_iter()
+            .map(|item| {
+                let long_info = format!(
+                    "{} {:2} {:8} {:8} {:>6} {}",
+                    item.1.full_permissions(),
+                    item.1.link_count(blog_post_count),
+                    item.1.owner(),
+                    item.1.group(),
+                    item.1.size(),
+                    item.0
+                );
+                DirContentItem(long_info, item.1)
+            })
+            .collect::<Vec<_>>()
+    } else {
+        items
     };
-    view! {
-        <div>
-            <ColumnarView items render_func />
-        </div>
+
+    if long_format {
+        let long_render_func = {
+            move |s: DirContentItem| {
+                // Find the last space before the filename to preserve original formatting
+                if let Some(last_space_pos) = s.0.rfind(' ') {
+                    let metadata_with_spaces = s.0[..last_space_pos].to_string();
+                    let filename = s.0[last_space_pos + 1..].to_string();
+
+                    // Create the styled filename part
+                    let styled_filename = if matches!(s.1, Target::Dir(_)) {
+                        let base = if base == "/" { "" } else { &base };
+                        let href = if filename == "." {
+                            base.to_string()
+                        } else {
+                            format!("{}/{}", base, filename)
+                        };
+                        view! { <A href=href attr:class=dir_class>{filename}</A> }.into_any()
+                    } else if s.1.is_executable() {
+                        view! { <span class=ex_class>{filename}</span> }.into_any()
+                    } else {
+                        view! { <span>{filename}</span> }.into_any()
+                    };
+
+                    view! {
+                        <span>{metadata_with_spaces} " " {styled_filename}</span>
+                    }
+                    .into_any()
+                } else {
+                    view! { <span>{s.text_content()}</span> }.into_any()
+                }
+            }
+        };
+
+        view! {
+            <div>
+                {display_items.into_iter().map(|item| {
+                    view! {
+                        {long_render_func(item)} "\n"
+                    }
+                }).collect_view()}
+            </div>
+        }
+        .into_any()
+    } else {
+        let short_render_func = {
+            move |s: DirContentItem| {
+                if matches!(s.1, Target::Dir(_)) {
+                    let base = if base == "/" { "" } else { &base };
+                    let href = if s.0 == "." {
+                        base.to_string()
+                    } else {
+                        format!("{}/{}", base, s.0)
+                    };
+                    view! {
+                        <A href=href attr:class=dir_class>
+                            {s.text_content().to_string()}
+                        </A>
+                    }
+                    .into_any()
+                } else if s.1.is_executable() {
+                    view! { <span class=ex_class>{s.text_content()}</span> }.into_any()
+                } else {
+                    view! { <span>{s.text_content()}</span> }.into_any()
+                }
+            }
+        };
+
+        view! {
+            <div>
+                <ColumnarView items=display_items render_func=short_render_func />
+            </div>
+        }
+        .into_any()
     }
 }
 

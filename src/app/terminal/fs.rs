@@ -308,4 +308,49 @@ impl Target {
     pub fn is_executable(&self) -> bool {
         matches!(self, Self::File(File::MinesSh | File::Nav(_)))
     }
+
+    pub fn full_permissions(&self) -> &'static str {
+        match self {
+            Self::Dir(_) => "drwxr-xr-x",
+            Self::File(_) if self.is_executable() => "-rwxr-xr-x",
+            Self::File(_) => "-rw-r--r--",
+            Self::Invalid => "?---------",
+        }
+    }
+
+    pub fn link_count(&self, blog_post_count: usize) -> u32 {
+        match self {
+            Self::Dir(Dir::Base) => 6 + 2, // mines.sh, thanks.txt, .zshrc, nav.rs, blog/, cv/ + . + ..
+            Self::Dir(Dir::Blog) => (blog_post_count + 1 + 2) as u32, // posts + nav.rs + . + ..
+            Self::Dir(Dir::CV) => 1 + 2,   // nav.rs + . + ..
+            Self::Dir(Dir::BlogPost(_)) => 1 + 2, // nav.rs + . + ..
+            Self::File(_) => 1,            // Regular files have 1 link
+            Self::Invalid => 0,
+        }
+    }
+
+    pub fn owner(&self) -> &'static str {
+        "hansbaker"
+    }
+
+    pub fn group(&self) -> &'static str {
+        match self {
+            Self::Dir(_) => "staff",
+            Self::File(File::MinesSh) => "wheel", // Executable gets wheel group
+            Self::File(File::Nav(_)) => "wheel",  // nav.rs is executable
+            Self::File(_) => "staff",
+            Self::Invalid => "staff",
+        }
+    }
+
+    pub fn size(&self) -> u64 {
+        match self {
+            Self::Dir(_) => 128,               // Directories show standard size
+            Self::File(File::MinesSh) => 156,  // Size of the mines.sh script
+            Self::File(File::ThanksTxt) => 77, // Size of thanks.txt
+            Self::File(File::ZshRc) => 1024,   // .zshrc is larger
+            Self::File(File::Nav(_)) => 512,   // nav.rs files
+            Self::Invalid => 0,
+        }
+    }
 }
