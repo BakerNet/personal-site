@@ -235,36 +235,31 @@ fn LsView(
     };
 
     if long_format {
-        let long_render_func = {
-            move |s: DirContentItem| {
-                // Find the last space before the filename to preserve original formatting
-                if let Some(last_space_pos) = s.0.rfind(' ') {
-                    let metadata_with_spaces = s.0[..last_space_pos].to_string();
-                    let filename = s.0[last_space_pos + 1..].to_string();
+        let long_render_func = move |s: DirContentItem| {
+            // Find the last space before the filename to preserve original formatting
+            let last_space_pos = s.0.rfind(' ').unwrap();
+            let metadata_with_spaces = s.0[..last_space_pos].to_string();
+            let filename = s.0[last_space_pos + 1..].to_string();
 
-                    // Create the styled filename part
-                    let styled_filename = if matches!(s.1, Target::Dir(_)) {
-                        let base = if base == "/" { "" } else { &base };
-                        let href = if filename == "." {
-                            base.to_string()
-                        } else {
-                            format!("{}/{}", base, filename)
-                        };
-                        view! { <A href=href attr:class=dir_class>{filename}</A> }.into_any()
-                    } else if s.1.is_executable() {
-                        view! { <span class=ex_class>{filename}</span> }.into_any()
-                    } else {
-                        view! { <span>{filename}</span> }.into_any()
-                    };
-
-                    view! {
-                        <span>{metadata_with_spaces} " " {styled_filename}</span>
-                    }
-                    .into_any()
+            // Create the styled filename part
+            let styled_filename = if matches!(s.1, Target::Dir(_)) {
+                let base = if base == "/" { "" } else { &base };
+                let href = if filename == "." {
+                    base.to_string()
                 } else {
-                    view! { <span>{s.text_content()}</span> }.into_any()
-                }
+                    format!("{}/{}", base, filename)
+                };
+                view! { <A href=href attr:class=dir_class>{filename}</A> }.into_any()
+            } else if s.1.is_executable() {
+                view! { <span class=ex_class>{filename}</span> }.into_any()
+            } else {
+                view! { <span>{filename}</span> }.into_any()
+            };
+
+            view! {
+                <span>{metadata_with_spaces} " " {styled_filename}</span>
             }
+            .into_any()
         };
 
         view! {
