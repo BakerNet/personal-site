@@ -249,26 +249,32 @@ fn LsView(
                 } else {
                     format!("{}/{}", base, filename)
                 };
-                view! { <A href=href attr:class=dir_class>{filename}</A> }.into_any()
+                view! {
+                    <A href=href attr:class=dir_class>
+                        {filename}
+                    </A>
+                }.into_any()
             } else if s.1.is_executable() {
                 view! { <span class=ex_class>{filename}</span> }.into_any()
             } else {
                 view! { <span>{filename}</span> }.into_any()
             };
 
-            view! {
-                <span>{metadata_with_spaces} " " {styled_filename}</span>
-            }
+            view! { <span>{metadata_with_spaces} " " {styled_filename}</span> }
             .into_any()
         };
 
         view! {
             <div>
-                {display_items.into_iter().map(|item| {
-                    view! {
-                        {long_render_func(item)} "\n"
-                    }
-                }).collect_view()}
+                {display_items
+                    .into_iter()
+                    .map(|item| {
+                        view! {
+                            {long_render_func(item)}
+                            "\n"
+                        }
+                    })
+                    .collect_view()}
             </div>
         }
         .into_any()
