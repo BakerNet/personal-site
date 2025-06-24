@@ -99,7 +99,7 @@ This version of ls only supports option 'a'"#
                         .into_any(),
                     );
                     if is_multi {
-                        all_views.push(view! {<br />}.into_any());
+                        all_views.push(view! { <br /> }.into_any());
                     }
                 }
                 for (i, (tp, d)) in dir_targets.iter().enumerate() {
@@ -189,9 +189,7 @@ fn LsView(items: Vec<DirContentItem>, base: String) -> impl IntoView {
                     </A>
                 })
             } else if s.1.is_executable() {
-                EitherOf3::B(view! {
-                    <span class=ex_class>{s.text_content()}</span>
-                })
+                EitherOf3::B(view! { <span class=ex_class>{s.text_content()}</span> })
             } else {
                 EitherOf3::C(view! { <span>{s.text_content()}</span> })
             }

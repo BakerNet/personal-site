@@ -698,26 +698,27 @@ pub fn Header() -> impl IntoView {
                 </div>
                 {move || {
                     let tab_state = tab_state.get();
-                    tab_state.map(|ts| {
-                        let selected = ts
-                            .opts
-                            .iter()
-                            .enumerate()
-                            .find_map(|(vi, item)| {
-                                if Some(vi) == ts.index { Some(item.to_owned()) } else { None }
-                            });
-                        let render_func = move |item: DirContentItem| {
-                            let is_sel = selected.as_ref().map(|s| &s.0) == Some(&item.0);
-                            auto_comp_item(&item, is_sel).into_any()
-                        };
-                        view! {
-                            <div class="mt-2 p-3 rounded-md bg-black/30 border border-muted/40 backdrop-blur-sm">
-                                <pre class="whitespace-pre-wrap terminal-output">
-                                    <ColumnarView items=ts.opts.to_vec() render_func />
-                                </pre>
-                            </div>
-                        }
-                    })
+                    tab_state
+                        .map(|ts| {
+                            let selected = ts
+                                .opts
+                                .iter()
+                                .enumerate()
+                                .find_map(|(vi, item)| {
+                                    if Some(vi) == ts.index { Some(item.to_owned()) } else { None }
+                                });
+                            let render_func = move |item: DirContentItem| {
+                                let is_sel = selected.as_ref().map(|s| &s.0) == Some(&item.0);
+                                auto_comp_item(&item, is_sel).into_any()
+                            };
+                            view! {
+                                <div class="mt-2 p-3 rounded-md bg-black/30 border border-muted/40 backdrop-blur-sm">
+                                    <pre class="whitespace-pre-wrap terminal-output">
+                                        <ColumnarView items=ts.opts.to_vec() render_func />
+                                    </pre>
+                                </div>
+                            }
+                        })
                 }}
             </div>
         </header>
