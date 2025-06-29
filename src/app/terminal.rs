@@ -1,6 +1,5 @@
 mod command;
 mod components;
-mod cp_mv_tools;
 mod fs_tools;
 mod ps_tools;
 mod simple_tools;
@@ -14,8 +13,9 @@ use std::collections::{HashMap, VecDeque};
 
 use command::{Cmd, CmdAlias, Command, VfsCommand};
 use components::TextContent;
-use cp_mv_tools::{CpCommand, MvCommand};
-use fs_tools::{CatCommand, CdCommand, LsCommand, MkdirCommand, RmCommand, TouchCommand};
+use fs_tools::{
+    CatCommand, CdCommand, CpCommand, LsCommand, MkdirCommand, MvCommand, RmCommand, TouchCommand,
+};
 use indextree::NodeId;
 use ps_tools::{KillCommand, Process, PsCommand};
 use simple_tools::{
