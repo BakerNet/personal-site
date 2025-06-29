@@ -252,17 +252,41 @@ This version of ls only supports options 'a' and 'l'"#
                 view! { {all_views} }.into_any()
             }))
         } else {
-            // For non-TTY output, just return simple text
-            // TODO - fix - not currently doing long format
+            // For non-TTY output, return text format
             let mut text_output = Vec::new();
+            let is_multi =
+                dir_listings.len() > 1 || (!dir_listings.is_empty() && !file_items.is_empty());
 
-            for item in &file_items {
-                text_output.push(item.display_name.clone());
+            // Handle file targets
+            if !file_items.is_empty() {
+                for item in &file_items {
+                    if long_format {
+                        text_output.push(format!("{} {}", item.node.long_meta_string(item.link_count), item.display_name));
+                    } else {
+                        text_output.push(item.display_name.clone());
+                    }
+                }
+
+                if is_multi {
+                    text_output.push("".to_string()); // Empty line separator
+                }
             }
 
-            for (_, items) in &dir_listings {
+            // Handle directory targets
+            for (i, (display_name, items)) in dir_listings.iter().enumerate() {
+                if is_multi {
+                    if i > 0 {
+                        text_output.push("".to_string()); // Empty line separator
+                    }
+                    text_output.push(format!("{}:", display_name));
+                }
+
                 for item in items {
-                    text_output.push(item.display_name.clone());
+                    if long_format {
+                        text_output.push(format!("{} {}", item.node.long_meta_string(item.link_count), item.display_name));
+                    } else {
+                        text_output.push(item.display_name.clone());
+                    }
                 }
             }
 
