@@ -58,7 +58,7 @@ impl VfsCommand for LsCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        is_output_tty: bool,
+        is_tty: bool,
     ) -> CommandRes {
         let mut all = false;
         let mut long_format = false;
@@ -204,7 +204,7 @@ This version of ls only supports options 'a' and 'l'"#
         file_items.sort_by(|a, b| a.display_name.cmp(&b.display_name));
         dir_listings.sort_by(|a, b| a.0.cmp(&b.0));
 
-        if is_output_tty {
+        if is_tty {
             let is_multi =
                 dir_listings.len() > 1 || (!dir_listings.is_empty() && !file_items.is_empty());
 
@@ -254,7 +254,7 @@ This version of ls only supports options 'a' and 'l'"#
             }))
         } else {
             // For non-TTY output, just return simple text
-            // TODO - fix
+            // TODO - fix - not currently doing long format
             let mut text_output = Vec::new();
 
             for item in &file_items {
@@ -437,7 +437,7 @@ impl VfsCommand for CatCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let (options, targets) = parse_multitarget(args);
 
@@ -543,7 +543,7 @@ impl VfsCommand for TouchCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let (_, targets) = parse_multitarget(args);
 
@@ -651,7 +651,7 @@ impl VfsCommand for MkdirCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let (_, targets) = parse_multitarget(args);
 
@@ -758,7 +758,7 @@ impl VfsCommand for RmCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let (options, targets) = parse_multitarget(args);
 

@@ -55,7 +55,7 @@ impl VfsCommand for WhichCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if args.is_empty() {
             return CommandRes::new()
@@ -101,7 +101,7 @@ impl VfsCommand for UnknownCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        is_output_tty: bool,
+        is_tty: bool,
     ) -> CommandRes {
         let target_string = &self.command_name;
 
@@ -132,7 +132,7 @@ impl VfsCommand for UnknownCommand {
 
         if node.name == "mines.sh" && is_executable {
             let path = vfs.get_node_path(current_dir);
-            return MinesCommand.execute(&path, args, None, is_output_tty);
+            return MinesCommand.execute(&path, args, None, is_tty);
         }
 
         match &node.node_type {

@@ -20,7 +20,7 @@ impl VfsCommand for CpCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let (options, targets) = parse_multitarget(args);
 
@@ -251,7 +251,7 @@ impl VfsCommand for MvCommand {
         current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let (_, targets) = parse_multitarget(args);
 

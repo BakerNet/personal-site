@@ -5,13 +5,8 @@ use indextree::NodeId;
 use leptos::prelude::*;
 
 pub trait Command: Send + Sync {
-    fn execute(
-        &self,
-        path: &str,
-        args: Vec<&str>,
-        stdin: Option<&str>,
-        is_output_tty: bool,
-    ) -> CommandRes;
+    fn execute(&self, path: &str, args: Vec<&str>, stdin: Option<&str>, is_tty: bool)
+        -> CommandRes;
 }
 
 /// VFS-aware command trait for commands that need direct filesystem access
@@ -29,7 +24,7 @@ pub trait VfsCommand: Send + Sync {
 pub enum CommandRes {
     Output {
         is_err: bool,                    // true if command failed (non-zero exit code)
-        stdout_view: Option<ChildrenFn>, // stdout content for display (only set if is_output_tty)
+        stdout_view: Option<ChildrenFn>, // stdout content for display (only set if is_tty)
         stdout_text: Option<String>,     // stdout for piping
         stderr_text: Option<String>,     // stderr text (Header converts to view)
     },
@@ -184,14 +179,10 @@ impl Cmd {
             }
 
             // Terminal/display utilities (typically in /usr/bin)
-            Self::Clear | Self::Date => {
-                Some(format!("/usr/bin/{}", self.as_str()))
-            }
+            Self::Clear | Self::Date => Some(format!("/usr/bin/{}", self.as_str())),
 
             // Custom/third-party applications (typically in /usr/local/bin)
-            Self::Neofetch | Self::Mines => {
-                Some(format!("/usr/local/bin/{}", self.as_str()))
-            }
+            Self::Neofetch | Self::Mines => Some(format!("/usr/local/bin/{}", self.as_str())),
 
             // Documentation/help (typically in /usr/bin)
             Self::Help => Some(format!("/usr/bin/{}", self.as_str())),

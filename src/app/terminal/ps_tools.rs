@@ -50,7 +50,7 @@ impl Command for PsCommand {
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         // Check for supported options
         if args.len() > 1 {
@@ -99,7 +99,7 @@ impl Command for KillCommand {
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if args.is_empty() {
             return CommandRes::new()

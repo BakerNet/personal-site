@@ -21,7 +21,7 @@ impl Command for HelpCommand {
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         CommandRes::new().with_stdout_text(HELP_TEXT)
     }
@@ -35,7 +35,7 @@ impl Command for PwdCommand {
         path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if !args.is_empty() {
             let error_msg = "pwd: too many arguments";
@@ -54,7 +54,7 @@ impl Command for WhoAmICommand {
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if !args.is_empty() {
             let error_msg = "usage: whoami";
@@ -73,7 +73,7 @@ impl Command for ClearCommand {
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        __is_output_tty: bool,
+        __is_tty: bool,
     ) -> CommandRes {
         CommandRes::new()
     }
@@ -103,7 +103,7 @@ impl Command for NeofetchCommand {
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let text = self.as_text();
         CommandRes::new().with_stdout_text(text)
@@ -118,7 +118,7 @@ impl Command for MinesCommand {
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        __is_output_tty: bool,
+        __is_tty: bool,
     ) -> CommandRes {
         CommandRes::redirect(MINES_URL.to_string())
     }
@@ -132,7 +132,7 @@ impl Command for SudoCommand {
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let error_msg = "user is not in the sudoers file. This incident will be reported.";
         CommandRes::new().with_error().with_stderr(error_msg)
@@ -147,7 +147,7 @@ impl Command for EchoCommand {
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let message = args
             .iter()
@@ -203,7 +203,7 @@ impl Command for DateCommand {
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if args.len() > 1 {
             let error_msg = "date: too many arguments";
@@ -269,7 +269,7 @@ impl Command for UptimeCommand {
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let output = self.get_uptime();
         CommandRes::new().with_stdout_text(output)
@@ -301,7 +301,7 @@ impl Command for HistoryCommand<'_> {
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if args.len() > 1 {
             return CommandRes::new()
