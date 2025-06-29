@@ -22,7 +22,7 @@ use leptos_use::storage::use_local_storage;
 
 use crate::blog::Assets;
 
-use super::terminal::{ColumnarView, CommandRes, Terminal, TabCompletionItem};
+use super::terminal::{ColumnarView, CommandRes, TabCompletionItem, Terminal};
 
 #[component]
 fn MobileFloatingButton(on_click: impl Fn() + 'static) -> impl IntoView {
@@ -206,7 +206,6 @@ pub fn Header() -> impl IntoView {
         .map(|s| s[..s.len() - 3].to_string())
         .collect::<Vec<_>>();
 
-    // Initialize terminal with current browser path for proper VFS state
     let terminal = StoredValue::new(Arc::new(Mutex::new(Terminal::new(&blog_posts, None))));
     let input_ref = NodeRef::<html::Input>::new();
     let floating_input_ref = NodeRef::<html::Input>::new();
