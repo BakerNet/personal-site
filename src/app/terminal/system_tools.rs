@@ -1,60 +1,61 @@
-use super::command::{CommandAlias, CommandRes, Executable};
-use super::fs::{path_target_to_target_path, File, Target};
+use super::command::{Cmd, CmdAlias, Command, CommandRes, VfsCommand};
 use super::simple_tools::MinesCommand;
+use super::vfs::{FileContent, VfsNodeType, VirtualFilesystem};
+use indextree::NodeId;
 
-pub struct WhichCommand {
-    blog_posts: Vec<String>,
-}
+pub struct WhichCommand;
 
 impl WhichCommand {
-    pub fn new(blog_posts: Vec<String>) -> Self {
-        Self { blog_posts }
+    pub fn new() -> Self {
+        Self
     }
 
-    fn get_which_result(&self, path: &str, command: &str) -> (String, bool) {
+    fn get_which_result(
+        &self,
+        vfs: &VirtualFilesystem,
+        current_dir: NodeId,
+        command: &str,
+    ) -> (String, bool) {
         // If the command contains a path separator, treat it as a file path
         if command.contains('/') {
-            let target_path = path_target_to_target_path(path, command, false);
-            let target = Target::from_str(&target_path, &self.blog_posts);
-
-            // Check if it's an executable file
-            let is_executable = target.is_executable();
-
-            if is_executable {
-                (command.to_string(), true)
+            // Resolve the path using VFS
+            let node_id = if let Ok(node_id) = vfs.resolve_path(current_dir, command) {
+                node_id
             } else {
-                (format!("{command} not found"), false)
+                return (format!("{command} not found"), false);
+            };
+            match vfs.get_node(node_id) {
+                Some(node) if node.is_executable() => (command.to_string(), true),
+                _ => (format!("{command} not found"), false),
             }
-        } else if let Some(alias) = CommandAlias::from_str(command) {
+        } else if let Some(alias) = CmdAlias::from_str(command) {
             // Check if it's an alias first
             let expansion = alias.expand("");
             (format!("{command}: aliased to {expansion}"), true)
-        } else {
-            // Map commands to their simulated paths
-            match command {
-                // Shell builtins
-                "cd" | "pwd" | "echo" | "history" => (format!("{command}: shell builtin"), true),
-
-                // External commands (simulated paths)
-                "help" | "ls" | "cat" | "clear" | "cp" | "date" | "mines" | "mkdir" | "mv"
-                | "rm" | "touch" | "which" | "whoami" | "neofetch" | "uptime" | "ps" | "kill" => {
-                    (format!("/usr/bin/{command}"), true)
-                }
-
-                // Unknown command
-                _ => (format!("{command} not found"), false),
+        } else if let Some(cmd) = Cmd::from_str(command) {
+            // Known command - get its simulated path or mark as builtin
+            if cmd.is_builtin() {
+                (format!("{command}: shell builtin"), true)
+            } else if let Some(path) = cmd.simulated_path() {
+                (path, true)
+            } else {
+                (format!("{command} not found"), false)
             }
+        } else {
+            // Unknown command
+            (format!("{command} not found"), false)
         }
     }
 }
 
-impl Executable for WhichCommand {
+impl VfsCommand for WhichCommand {
     fn execute(
         &self,
-        path: &str,
+        vfs: &mut VirtualFilesystem,
+        current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if args.is_empty() {
             return CommandRes::new()
@@ -66,7 +67,7 @@ impl Executable for WhichCommand {
         let results: Vec<String> = args
             .iter()
             .map(|&command| {
-                let (text, found) = self.get_which_result(path, command);
+                let (text, found) = self.get_which_result(vfs, current_dir, command);
                 if !found {
                     is_err = true;
                 }
@@ -84,54 +85,71 @@ impl Executable for WhichCommand {
 }
 
 pub struct UnknownCommand {
-    blog_posts: Vec<String>,
     command_name: String,
 }
 
 impl UnknownCommand {
-    pub fn new(blog_posts: Vec<String>, command_name: String) -> Self {
-        Self {
-            blog_posts,
-            command_name,
-        }
+    pub fn new(command_name: String) -> Self {
+        Self { command_name }
     }
 }
 
-impl Executable for UnknownCommand {
+impl VfsCommand for UnknownCommand {
     fn execute(
         &self,
-        path: &str,
+        vfs: &mut VirtualFilesystem,
+        current_dir: NodeId,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        is_output_tty: bool,
+        is_tty: bool,
     ) -> CommandRes {
-        let target_string = self.command_name.clone();
-        let target_path = path_target_to_target_path(path, &self.command_name, false);
-        let target = Target::from_str(&target_path, &self.blog_posts);
-        let is_executable = target.is_executable() && target_string.contains("/");
+        let target_string = &self.command_name;
+
+        // Try to resolve the path using VFS
+        let node_id = match vfs.resolve_path(current_dir, target_string) {
+            Ok(node_id) => node_id,
+            Err(_) => {
+                let error_msg = format!("command not found: {target_string}");
+                return CommandRes::new().with_error().with_stderr(error_msg);
+            }
+        };
+
+        let node = match vfs.get_node(node_id) {
+            Some(node) => node,
+            None => {
+                let error_msg = format!("command not found: {target_string}");
+                return CommandRes::new().with_error().with_stderr(error_msg);
+            }
+        };
+
+        let is_executable = node.is_executable() && target_string.contains("/");
+
+        // Check if arguments are allowed for non-executable files
         if !args.is_empty() && !is_executable {
-            // only mines.sh and nav.rs are executable, so only these can accept arguments
             let error_msg = format!("command not found: {target_string}");
             return CommandRes::new().with_error().with_stderr(error_msg);
         }
-        match target {
-            Target::Dir(_) => CommandRes::redirect(target_path),
-            Target::File(f) => {
+
+        if node.name == "mines.sh" && is_executable {
+            let path = vfs.get_node_path(current_dir);
+            return MinesCommand.execute(&path, args, None, is_tty);
+        }
+
+        match &node.node_type {
+            VfsNodeType::Directory => {
+                let target_path = vfs.get_node_path(node_id);
+                CommandRes::redirect(target_path)
+            }
+            VfsNodeType::File { content } => {
+                // Check for directory syntax on file
                 if target_string.ends_with("/") {
                     let error_msg = format!("not a directory: {target_string}");
                     return CommandRes::new().with_error().with_stderr(error_msg);
                 }
-                match f {
-                    File::Nav(s) => CommandRes::redirect(s),
-                    File::MinesSh => {
-                        if is_executable {
-                            MinesCommand.execute(path, args, None, is_output_tty)
-                        } else {
-                            let error_msg = format!("command not found: {target_string}\nhint: try 'mines' or '/mines.sh'");
-                            CommandRes::new().with_error().with_stderr(error_msg)
-                        }
-                    }
-                    File::ThanksTxt | File::ZshRc => {
+
+                match content {
+                    FileContent::NavFile(s) => CommandRes::redirect(s.clone()),
+                    FileContent::Static(_) | FileContent::Dynamic(_) => {
                         let error_msg = if target_string.contains("/") {
                             format!("permission denied: {target_string}")
                         } else {
@@ -141,7 +159,7 @@ impl Executable for UnknownCommand {
                     }
                 }
             }
-            Target::Invalid => {
+            VfsNodeType::Link { .. } => {
                 let error_msg = format!("command not found: {target_string}");
                 CommandRes::new().with_error().with_stderr(error_msg)
             }

@@ -1,5 +1,4 @@
-
-use crate::app::terminal::command::{CommandRes, Executable};
+use crate::app::terminal::command::{Command, CommandRes};
 
 #[derive(Debug, Clone)]
 pub struct Process {
@@ -45,8 +44,14 @@ impl PsCommand {
     }
 }
 
-impl Executable for PsCommand {
-    fn execute(&self, _path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+impl Command for PsCommand {
+    fn execute(
+        &self,
+        _path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_tty: bool,
+    ) -> CommandRes {
         // Check for supported options
         if args.len() > 1 {
             return CommandRes::new()
@@ -61,15 +66,12 @@ impl Executable for PsCommand {
         } else {
             let arg = args[0].to_string();
             let error_msg = format!("ps: invalid argument -- '{arg}'\nUsage: ps [aux]");
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         };
 
         let output = self.get_processes(detailed);
         CommandRes::new().with_stdout_text(output)
     }
-
 }
 
 pub struct KillCommand {
@@ -91,8 +93,14 @@ static SIGS: [&str; 18] = [
     "6", "7", "8", "9",
 ];
 
-impl Executable for KillCommand {
-    fn execute(&self, _path: &str, args: Vec<&str>, _stdin: Option<&str>, _is_output_tty: bool) -> CommandRes {
+impl Command for KillCommand {
+    fn execute(
+        &self,
+        _path: &str,
+        args: Vec<&str>,
+        _stdin: Option<&str>,
+        _is_tty: bool,
+    ) -> CommandRes {
         if args.is_empty() {
             return CommandRes::new()
                 .with_error()
@@ -104,14 +112,10 @@ impl Executable for KillCommand {
             if !SIGS.contains(&signal_name.as_str()) {
                 if signal_name.chars().all(|c| c.is_ascii_alphabetic()) {
                     let error_msg = format!("kill: unknown signal: SIG{signal_name}");
-                    return CommandRes::new()
-                        .with_error()
-                        .with_stderr(error_msg);
+                    return CommandRes::new().with_error().with_stderr(error_msg);
                 } else {
                     let error_msg = "kill: usage: kill [-n signum] pid";
-                    return CommandRes::new()
-                        .with_error()
-                        .with_stderr(error_msg);
+                    return CommandRes::new().with_error().with_stderr(error_msg);
                 }
             }
             &args[1..]
@@ -133,9 +137,7 @@ impl Executable for KillCommand {
             Err(_) => {
                 let pid_str = pid_str.to_string();
                 let error_msg = format!("kill: illegal pid: {pid_str}");
-                return CommandRes::new()
-                    .with_error()
-                    .with_stderr(error_msg);
+                return CommandRes::new().with_error().with_stderr(error_msg);
             }
         };
 
@@ -144,34 +146,25 @@ impl Executable for KillCommand {
 
         if !process_exists {
             let error_msg = format!("kill: kill {pid} failed: no such process");
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
 
         // Handle special PID 42 with easter egg
         if pid == 42 {
             let message =
                 "Answer to everything terminated\nkill: kill 42 failed: operation not permitted";
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(message);
+            return CommandRes::new().with_error().with_stderr(message);
         }
 
         // All core services show permission denied
         let core_services = [1, 42, 99, 128, 256];
         if core_services.contains(&pid) {
             let error_msg = format!("kill: kill {pid} failed: operation not permitted");
-            return CommandRes::new()
-                .with_error()
-                .with_stderr(error_msg);
+            return CommandRes::new().with_error().with_stderr(error_msg);
         }
 
         // This shouldn't be reached with our current process list, but included for completeness
         let error_msg = format!("kill: kill {pid} failed: operation not permitted");
-        CommandRes::new()
-            .with_error()
-            .with_stderr(error_msg)
+        CommandRes::new().with_error().with_stderr(error_msg)
     }
-
 }

@@ -1,4 +1,4 @@
-use super::command::{CommandRes, Executable};
+use super::command::{Command, CommandRes};
 use crate::app::ascii::{AVATAR_BLOCK, INFO_BLOCK};
 use chrono::prelude::*;
 
@@ -15,13 +15,13 @@ The commands should feel familiar:
 
 pub struct HelpCommand;
 
-impl Executable for HelpCommand {
+impl Command for HelpCommand {
     fn execute(
         &self,
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         CommandRes::new().with_stdout_text(HELP_TEXT)
     }
@@ -29,13 +29,13 @@ impl Executable for HelpCommand {
 
 pub struct PwdCommand;
 
-impl Executable for PwdCommand {
+impl Command for PwdCommand {
     fn execute(
         &self,
         path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if !args.is_empty() {
             let error_msg = "pwd: too many arguments";
@@ -48,13 +48,13 @@ impl Executable for PwdCommand {
 
 pub struct WhoAmICommand;
 
-impl Executable for WhoAmICommand {
+impl Command for WhoAmICommand {
     fn execute(
         &self,
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if !args.is_empty() {
             let error_msg = "usage: whoami";
@@ -67,13 +67,13 @@ impl Executable for WhoAmICommand {
 
 pub struct ClearCommand;
 
-impl Executable for ClearCommand {
+impl Command for ClearCommand {
     fn execute(
         &self,
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        __is_output_tty: bool,
+        __is_tty: bool,
     ) -> CommandRes {
         CommandRes::new()
     }
@@ -97,13 +97,13 @@ impl NeofetchCommand {
     }
 }
 
-impl Executable for NeofetchCommand {
+impl Command for NeofetchCommand {
     fn execute(
         &self,
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let text = self.as_text();
         CommandRes::new().with_stdout_text(text)
@@ -112,13 +112,13 @@ impl Executable for NeofetchCommand {
 
 pub struct MinesCommand;
 
-impl Executable for MinesCommand {
+impl Command for MinesCommand {
     fn execute(
         &self,
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        __is_output_tty: bool,
+        __is_tty: bool,
     ) -> CommandRes {
         CommandRes::redirect(MINES_URL.to_string())
     }
@@ -126,13 +126,13 @@ impl Executable for MinesCommand {
 
 pub struct SudoCommand;
 
-impl Executable for SudoCommand {
+impl Command for SudoCommand {
     fn execute(
         &self,
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let error_msg = "user is not in the sudoers file. This incident will be reported.";
         CommandRes::new().with_error().with_stderr(error_msg)
@@ -141,13 +141,13 @@ impl Executable for SudoCommand {
 
 pub struct EchoCommand;
 
-impl Executable for EchoCommand {
+impl Command for EchoCommand {
     fn execute(
         &self,
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let message = args
             .iter()
@@ -197,13 +197,13 @@ impl DateCommand {
     }
 }
 
-impl Executable for DateCommand {
+impl Command for DateCommand {
     fn execute(
         &self,
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if args.len() > 1 {
             let error_msg = "date: too many arguments";
@@ -263,13 +263,13 @@ impl UptimeCommand {
     }
 }
 
-impl Executable for UptimeCommand {
+impl Command for UptimeCommand {
     fn execute(
         &self,
         _path: &str,
         _args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         let output = self.get_uptime();
         CommandRes::new().with_stdout_text(output)
@@ -295,13 +295,13 @@ impl<'a> HistoryCommand<'a> {
     }
 }
 
-impl Executable for HistoryCommand<'_> {
+impl Command for HistoryCommand<'_> {
     fn execute(
         &self,
         _path: &str,
         args: Vec<&str>,
         _stdin: Option<&str>,
-        _is_output_tty: bool,
+        _is_tty: bool,
     ) -> CommandRes {
         if args.len() > 1 {
             return CommandRes::new()

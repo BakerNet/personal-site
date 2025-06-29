@@ -22,8 +22,7 @@ use leptos_use::storage::use_local_storage;
 
 use crate::blog::Assets;
 
-use super::terminal::fs::{DirContentItem, Target};
-use super::terminal::{ColumnarView, CommandRes, Terminal};
+use super::terminal::{ColumnarView, CommandRes, TabCompletionItem, Terminal};
 
 #[component]
 fn MobileFloatingButton(on_click: impl Fn() + 'static) -> impl IntoView {
@@ -190,7 +189,7 @@ fn InputSection(
 #[derive(Debug, Clone)]
 struct TabState {
     cursor: usize,
-    opts: Arc<Vec<DirContentItem>>,
+    opts: Arc<Vec<TabCompletionItem>>,
     index: Option<usize>,
 }
 
@@ -206,6 +205,7 @@ pub fn Header() -> impl IntoView {
     let blog_posts = Assets::iter()
         .map(|s| s[..s.len() - 3].to_string())
         .collect::<Vec<_>>();
+
     let terminal = StoredValue::new(Arc::new(Mutex::new(Terminal::new(&blog_posts, None))));
     let input_ref = NodeRef::<html::Input>::new();
     let floating_input_ref = NodeRef::<html::Input>::new();
@@ -694,7 +694,7 @@ pub fn Header() -> impl IntoView {
                         (None, true) | (Some(0), true) => opts.len() - 1,
                         (Some(i), true) => i - 1,
                     };
-                    let new = tab_replace(&val[..cursor], &opts[new_index].0);
+                    let new = tab_replace(&val[..cursor], &opts[new_index].completion_text);
                     el.set_value(&new);
                     set_input_value.set(new.clone());
                     set_cursor_position.set(new.len()); // Set cursor to end after tab completion
@@ -719,7 +719,7 @@ pub fn Header() -> impl IntoView {
                         return;
                     };
                     if opts.len() == 1 {
-                        let new = tab_replace(&val, &opts[0].0);
+                        let new = tab_replace(&val, &opts[0].completion_text);
                         el.set_value(&new);
                         set_input_value.set(new.clone());
                         set_cursor_position.set(new.len()); // Set cursor to end after tab completion
@@ -728,7 +728,7 @@ pub fn Header() -> impl IntoView {
                     let cursor = val.len();
                     let index = if is_shift {
                         let i = opts.len() - 1;
-                        let new = tab_replace(&val[..cursor], &opts[i].0);
+                        let new = tab_replace(&val[..cursor], &opts[i].completion_text);
                         el.set_value(&new);
                         set_input_value.set(new.clone());
                         set_cursor_position.set(new.len()); // Set cursor to end after tab completion
@@ -775,11 +775,10 @@ pub fn Header() -> impl IntoView {
     };
 
     let auto_comp_item = {
-        move |item: &DirContentItem, active: bool| {
-            let s = &item.0;
-            let target = &item.1;
-            let is_dir = matches!(target, Target::Dir(_));
-            let is_ex = target.is_executable();
+        move |item: &TabCompletionItem, active: bool| {
+            let s = &item.completion_text;
+            let is_dir = item.is_directory;
+            let is_ex = item.is_executable;
             let has_suffix = s.ends_with("/") || s.ends_with("*");
 
             let s_display = if !active && has_suffix {
@@ -898,8 +897,9 @@ pub fn Header() -> impl IntoView {
                                             None
                                         }
                                     });
-                                let render_func = move |item: DirContentItem| {
-                                    let is_sel = selected.as_ref().map(|s| &s.0) == Some(&item.0);
+                                let render_func = move |item: TabCompletionItem| {
+                                    let is_sel = selected.as_ref().map(|s| &s.completion_text)
+                                        == Some(&item.completion_text);
                                     auto_comp_item(&item, is_sel).into_any()
                                 };
                                 view! {
