@@ -43,15 +43,15 @@ impl TextContent for VfsItem {
 }
 
 // VFS-based LsCommand for Phase 2 migration
-pub struct VfsLsCommand;
+pub struct LsCommand;
 
-impl VfsLsCommand {
+impl LsCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl VfsCommand for VfsLsCommand {
+impl VfsCommand for LsCommand {
     fn execute(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -352,15 +352,15 @@ fn VfsLsView(items: Vec<VfsItem>, #[prop(default = false)] long_format: bool) ->
 }
 
 // VFS-based CdCommand for Phase 2 migration
-pub struct VfsCdCommand;
+pub struct CdCommand;
 
-impl VfsCdCommand {
+impl CdCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl VfsCommand for VfsCdCommand {
+impl VfsCommand for CdCommand {
     fn execute(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -422,15 +422,15 @@ impl VfsCommand for VfsCdCommand {
 }
 
 // VFS-based CatCommand for Phase 2 migration
-pub struct VfsCatCommand;
+pub struct CatCommand;
 
-impl VfsCatCommand {
+impl CatCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl VfsCommand for VfsCatCommand {
+impl VfsCommand for CatCommand {
     fn execute(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -528,15 +528,15 @@ This version of cat doesn't support any options"#
 }
 
 // VFS-based TouchCommand for Phase 2 migration
-pub struct VfsTouchCommand;
+pub struct TouchCommand;
 
-impl VfsTouchCommand {
+impl TouchCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl VfsCommand for VfsTouchCommand {
+impl VfsCommand for TouchCommand {
     fn execute(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -636,15 +636,15 @@ impl VfsCommand for VfsTouchCommand {
 }
 
 // VFS-based MkdirCommand for Phase 2 migration
-pub struct VfsMkdirCommand;
+pub struct MkdirCommand;
 
-impl VfsMkdirCommand {
+impl MkdirCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl VfsCommand for VfsMkdirCommand {
+impl VfsCommand for MkdirCommand {
     fn execute(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -743,15 +743,15 @@ impl VfsCommand for VfsMkdirCommand {
 }
 
 // VFS-based RmCommand for Phase 2 migration
-pub struct VfsRmCommand;
+pub struct RmCommand;
 
-impl VfsRmCommand {
+impl RmCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl VfsCommand for VfsRmCommand {
+impl VfsCommand for RmCommand {
     fn execute(
         &self,
         vfs: &mut VirtualFilesystem,

@@ -1,19 +1,19 @@
 use indextree::NodeId;
 
 use super::command::{CommandRes, VfsCommand};
-use super::fs_tools::{parse_multitarget, VfsRmCommand};
+use super::fs_tools::{parse_multitarget, RmCommand};
 use super::vfs::{FileContent, VfsError, VfsNodeType, VirtualFilesystem};
 
 // VFS-based CpCommand for Phase 2 migration
-pub struct VfsCpCommand;
+pub struct CpCommand;
 
-impl VfsCpCommand {
+impl CpCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl VfsCommand for VfsCpCommand {
+impl VfsCommand for CpCommand {
     fn execute(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -71,7 +71,7 @@ This version of cp only supports options 'r' and 'f'"#
     }
 }
 
-impl VfsCpCommand {
+impl CpCommand {
     fn copy_item(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -236,15 +236,15 @@ impl VfsCpCommand {
 }
 
 // VFS-based MvCommand for Phase 2 migration
-pub struct VfsMvCommand;
+pub struct MvCommand;
 
-impl VfsMvCommand {
+impl MvCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl VfsCommand for VfsMvCommand {
+impl VfsCommand for MvCommand {
     fn execute(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -288,7 +288,7 @@ impl VfsCommand for VfsMvCommand {
     }
 }
 
-impl VfsMvCommand {
+impl MvCommand {
     fn move_item(
         &self,
         vfs: &mut VirtualFilesystem,
@@ -329,7 +329,7 @@ impl VfsMvCommand {
         }
 
         // Step 2: Copy source to destination (with -r if directory)
-        let cp_command = VfsCpCommand::new();
+        let cp_command = CpCommand::new();
         let cp_args = if is_directory {
             vec!["-r", source_path, dest_path]
         } else {
@@ -353,7 +353,7 @@ impl VfsMvCommand {
         }
 
         // Step 3: Remove the source (with -r if directory)
-        let rm_command = VfsRmCommand::new();
+        let rm_command = RmCommand::new();
         let rm_args = if is_directory {
             vec!["-r", source_path]
         } else {

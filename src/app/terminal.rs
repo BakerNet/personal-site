@@ -14,10 +14,8 @@ use std::collections::{HashMap, VecDeque};
 
 use command::{Cmd, CmdAlias, Command, VfsCommand};
 use components::TextContent;
-use cp_mv_tools::{VfsCpCommand, VfsMvCommand};
-use fs_tools::{
-    VfsCatCommand, VfsCdCommand, VfsLsCommand, VfsMkdirCommand, VfsRmCommand, VfsTouchCommand,
-};
+use cp_mv_tools::{CpCommand, MvCommand};
+use fs_tools::{CatCommand, CdCommand, LsCommand, MkdirCommand, RmCommand, TouchCommand};
 use indextree::NodeId;
 use ps_tools::{KillCommand, Process, PsCommand};
 use simple_tools::{
@@ -153,23 +151,23 @@ impl Terminal {
     fn initialize_vfs_commands(&mut self) {
         // VFS-aware commands that need direct filesystem access
         self.vfs_commands
-            .insert(Cmd::Ls, Box::new(VfsLsCommand::new()));
+            .insert(Cmd::Ls, Box::new(LsCommand::new()));
         self.vfs_commands
-            .insert(Cmd::Cd, Box::new(VfsCdCommand::new()));
+            .insert(Cmd::Cd, Box::new(CdCommand::new()));
         self.vfs_commands
-            .insert(Cmd::Cat, Box::new(VfsCatCommand::new()));
+            .insert(Cmd::Cat, Box::new(CatCommand::new()));
         self.vfs_commands
-            .insert(Cmd::Touch, Box::new(VfsTouchCommand::new()));
+            .insert(Cmd::Touch, Box::new(TouchCommand::new()));
         self.vfs_commands
-            .insert(Cmd::MkDir, Box::new(VfsMkdirCommand::new()));
+            .insert(Cmd::MkDir, Box::new(MkdirCommand::new()));
         self.vfs_commands
-            .insert(Cmd::Rm, Box::new(VfsRmCommand::new()));
+            .insert(Cmd::Rm, Box::new(RmCommand::new()));
         self.vfs_commands
             .insert(Cmd::Which, Box::new(WhichCommand::new()));
         self.vfs_commands
-            .insert(Cmd::Cp, Box::new(VfsCpCommand::new()));
+            .insert(Cmd::Cp, Box::new(CpCommand::new()));
         self.vfs_commands
-            .insert(Cmd::Mv, Box::new(VfsMvCommand::new()));
+            .insert(Cmd::Mv, Box::new(MvCommand::new()));
     }
 
     #[cfg(feature = "hydrate")]
