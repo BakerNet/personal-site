@@ -1,4 +1,4 @@
-use super::command::{CommandRes, Executable};
+use super::command::{Command, CommandRes};
 use crate::app::ascii::{AVATAR_BLOCK, INFO_BLOCK};
 use chrono::prelude::*;
 
@@ -15,7 +15,7 @@ The commands should feel familiar:
 
 pub struct HelpCommand;
 
-impl Executable for HelpCommand {
+impl Command for HelpCommand {
     fn execute(
         &self,
         _path: &str,
@@ -29,7 +29,7 @@ impl Executable for HelpCommand {
 
 pub struct PwdCommand;
 
-impl Executable for PwdCommand {
+impl Command for PwdCommand {
     fn execute(
         &self,
         path: &str,
@@ -48,7 +48,7 @@ impl Executable for PwdCommand {
 
 pub struct WhoAmICommand;
 
-impl Executable for WhoAmICommand {
+impl Command for WhoAmICommand {
     fn execute(
         &self,
         _path: &str,
@@ -67,7 +67,7 @@ impl Executable for WhoAmICommand {
 
 pub struct ClearCommand;
 
-impl Executable for ClearCommand {
+impl Command for ClearCommand {
     fn execute(
         &self,
         _path: &str,
@@ -97,7 +97,7 @@ impl NeofetchCommand {
     }
 }
 
-impl Executable for NeofetchCommand {
+impl Command for NeofetchCommand {
     fn execute(
         &self,
         _path: &str,
@@ -112,7 +112,7 @@ impl Executable for NeofetchCommand {
 
 pub struct MinesCommand;
 
-impl Executable for MinesCommand {
+impl Command for MinesCommand {
     fn execute(
         &self,
         _path: &str,
@@ -126,7 +126,7 @@ impl Executable for MinesCommand {
 
 pub struct SudoCommand;
 
-impl Executable for SudoCommand {
+impl Command for SudoCommand {
     fn execute(
         &self,
         _path: &str,
@@ -141,7 +141,7 @@ impl Executable for SudoCommand {
 
 pub struct EchoCommand;
 
-impl Executable for EchoCommand {
+impl Command for EchoCommand {
     fn execute(
         &self,
         _path: &str,
@@ -197,7 +197,7 @@ impl DateCommand {
     }
 }
 
-impl Executable for DateCommand {
+impl Command for DateCommand {
     fn execute(
         &self,
         _path: &str,
@@ -263,7 +263,7 @@ impl UptimeCommand {
     }
 }
 
-impl Executable for UptimeCommand {
+impl Command for UptimeCommand {
     fn execute(
         &self,
         _path: &str,
@@ -295,7 +295,7 @@ impl<'a> HistoryCommand<'a> {
     }
 }
 
-impl Executable for HistoryCommand<'_> {
+impl Command for HistoryCommand<'_> {
     fn execute(
         &self,
         _path: &str,
