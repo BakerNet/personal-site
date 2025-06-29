@@ -898,7 +898,8 @@ pub fn Header() -> impl IntoView {
                                         }
                                     });
                                 let render_func = move |item: TabCompletionItem| {
-                                    let is_sel = selected.as_ref().map(|s| &s.completion_text) == Some(&item.completion_text);
+                                    let is_sel = selected.as_ref().map(|s| &s.completion_text)
+                                        == Some(&item.completion_text);
                                     auto_comp_item(&item, is_sel).into_any()
                                 };
                                 view! {

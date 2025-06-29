@@ -304,21 +304,13 @@ fn VfsLsView(items: Vec<VfsItem>, #[prop(default = false)] long_format: bool) ->
 
             view! {
                 <div class="whitespace-pre font-mono">
-                    {item.node.long_meta_string(item.link_count)}
-                    {styled_filename}
+                    {item.node.long_meta_string(item.link_count)} {styled_filename}
                 </div>
             }
             .into_any()
         };
 
-        view! {
-            <div>
-                {items
-                    .into_iter()
-                    .map(long_render_func)
-                    .collect_view()}
-            </div>
-        }
+        view! { <div>{items.into_iter().map(long_render_func).collect_view()}</div> }
         .into_any()
     } else {
         let short_render_func = move |item: VfsItem| {
