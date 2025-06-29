@@ -251,13 +251,13 @@ impl Terminal {
             return vfs_command.execute(&mut self.vfs, current_node, parts.collect(), None, true);
         }
 
-        // Fall back to legacy Executable commands
+        // Try non-VFS commands
         if let Some(command) = self.commands.get(&cmd) {
             // For now, assume not piped and output to TTY
             return command.execute(path, parts.collect(), None, true);
         }
 
-        // Fall back to legacy command handling for unimplemented commands
+        // Fall back to special command handling for some commands
         match cmd {
             // Special handling for history command due to mutable state requirements
             // The history -c flag requires mutable access to clear the terminal's history Vec,

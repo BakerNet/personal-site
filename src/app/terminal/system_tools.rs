@@ -131,7 +131,6 @@ impl VfsCommand for UnknownCommand {
         }
 
         if node.name == "mines.sh" && is_executable {
-            // MinesCommand doesn't implement VfsCommand yet, so fall back to legacy execution
             let path = vfs.get_node_path(current_dir);
             return MinesCommand.execute(&path, args, None, is_output_tty);
         }
