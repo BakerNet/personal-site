@@ -261,7 +261,11 @@ This version of ls only supports options 'a' and 'l'"#
             if !file_items.is_empty() {
                 for item in &file_items {
                     if long_format {
-                        text_output.push(format!("{} {}", item.node.long_meta_string(item.link_count), item.display_name));
+                        text_output.push(format!(
+                            "{} {}",
+                            item.node.long_meta_string(item.link_count),
+                            item.display_name
+                        ));
                     } else {
                         text_output.push(item.display_name.clone());
                     }
@@ -278,12 +282,16 @@ This version of ls only supports options 'a' and 'l'"#
                     if i > 0 {
                         text_output.push("".to_string()); // Empty line separator
                     }
-                    text_output.push(format!("{}:", display_name));
+                    text_output.push(format!("{display_name}:"));
                 }
 
                 for item in items {
                     if long_format {
-                        text_output.push(format!("{} {}", item.node.long_meta_string(item.link_count), item.display_name));
+                        text_output.push(format!(
+                            "{} {}",
+                            item.node.long_meta_string(item.link_count),
+                            item.display_name
+                        ));
                     } else {
                         text_output.push(item.display_name.clone());
                     }
@@ -334,8 +342,7 @@ fn VfsLsView(items: Vec<VfsItem>, #[prop(default = false)] long_format: bool) ->
             .into_any()
         };
 
-        view! { <div>{items.into_iter().map(long_render_func).collect_view()}</div> }
-        .into_any()
+        view! { <div>{items.into_iter().map(long_render_func).collect_view()}</div> }.into_any()
     } else {
         let short_render_func = move |item: VfsItem| {
             let display_name = item.display_name;
@@ -678,7 +685,7 @@ impl VfsCommand for MkdirCommand {
         for target in targets {
             // Split the path to get parent directory and dirname
             let (parent_path, dirname) = if let Some(pos) = target.rfind('/') {
-                (&target[..pos], &target[pos + 1..])
+                (&target[..pos + 1], &target[pos + 1..])
             } else {
                 ("", target)
             };
@@ -1220,5 +1227,169 @@ impl MvCommand {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::terminal::vfs::VirtualFilesystem;
+
+    #[test]
+    fn test_mkdir_absolute_path() {
+        let mut vfs = VirtualFilesystem::new(vec![]);
+        let root = vfs.get_root();
+        
+        // Create a subdirectory to be our current directory
+        let subdir = vfs.create_directory(root, "subdir").unwrap();
+        
+        // Test mkdir /testdir - should create in root, not in current directory
+        let mkdir = MkdirCommand::new();
+        let result = mkdir.execute(&mut vfs, subdir, vec!["/testdir"], None, false);
+        
+        assert!(!result.is_error(), "mkdir /testdir should succeed");
+        
+        // Verify the directory was created in root, not in subdir
+        let root_entries = vfs.list_directory(root).unwrap();
+        assert!(
+            root_entries.iter().any(|e| e.name == "testdir"),
+            "/testdir should exist in root directory"
+        );
+        
+        let subdir_entries = vfs.list_directory(subdir).unwrap();
+        assert!(
+            !subdir_entries.iter().any(|e| e.name == "testdir"),
+            "testdir should NOT exist in current directory (subdir)"
+        );
+    }
+
+    #[test]
+    fn test_mkdir_home_path() {
+        let mut vfs = VirtualFilesystem::new(vec![]);
+        let root = vfs.get_root();
+        
+        // Create a subdirectory to be our current directory
+        let subdir = vfs.create_directory(root, "subdir").unwrap();
+        
+        // Test mkdir ~/testdir - should create in root (home), not in current directory
+        let mkdir = MkdirCommand::new();
+        let result = mkdir.execute(&mut vfs, subdir, vec!["~/testdir"], None, false);
+        
+        assert!(!result.is_error(), "mkdir ~/testdir should succeed");
+        
+        // Verify the directory was created in root, not in subdir
+        let root_entries = vfs.list_directory(root).unwrap();
+        assert!(
+            root_entries.iter().any(|e| e.name == "testdir"),
+            "~/testdir should exist in root directory"
+        );
+        
+        let subdir_entries = vfs.list_directory(subdir).unwrap();
+        assert!(
+            !subdir_entries.iter().any(|e| e.name == "testdir"),
+            "testdir should NOT exist in current directory (subdir)"
+        );
+    }
+
+    #[test]
+    fn test_mkdir_relative_path() {
+        let mut vfs = VirtualFilesystem::new(vec![]);
+        let root = vfs.get_root();
+        
+        // Create a subdirectory to be our current directory
+        let subdir = vfs.create_directory(root, "subdir").unwrap();
+        
+        // Test mkdir testdir - should create in current directory, not in root
+        let mkdir = MkdirCommand::new();
+        let result = mkdir.execute(&mut vfs, subdir, vec!["testdir"], None, false);
+        
+        assert!(!result.is_error(), "mkdir testdir should succeed");
+        
+        // Verify the directory was created in subdir, not in root
+        let subdir_entries = vfs.list_directory(subdir).unwrap();
+        assert!(
+            subdir_entries.iter().any(|e| e.name == "testdir"),
+            "testdir should exist in current directory (subdir)"
+        );
+        
+        let root_entries = vfs.list_directory(root).unwrap();
+        assert_eq!(
+            root_entries.iter().filter(|e| e.name == "testdir").count(),
+            0,
+            "testdir should NOT exist in root directory"
+        );
+    }
+
+    #[test]
+    fn test_mkdir_nested_absolute_path() {
+        let mut vfs = VirtualFilesystem::new(vec![]);
+        let root = vfs.get_root();
+        
+        // Create some subdirectories
+        let dir1 = vfs.create_directory(root, "dir1").unwrap();
+        let dir2 = vfs.create_directory(dir1, "dir2").unwrap();
+        
+        // Test mkdir /dir1/newdir - should create in /dir1, not in current directory
+        let mkdir = MkdirCommand::new();
+        let result = mkdir.execute(&mut vfs, dir2, vec!["/dir1/newdir"], None, false);
+        
+        assert!(!result.is_error(), "mkdir /dir1/newdir should succeed");
+        
+        // Verify the directory was created in dir1
+        let dir1_entries = vfs.list_directory(dir1).unwrap();
+        assert!(
+            dir1_entries.iter().any(|e| e.name == "newdir"),
+            "newdir should exist in /dir1"
+        );
+        
+        // Verify it wasn't created in the current directory (dir2)
+        let dir2_entries = vfs.list_directory(dir2).unwrap();
+        assert!(
+            !dir2_entries.iter().any(|e| e.name == "newdir"),
+            "newdir should NOT exist in current directory (dir2)"
+        );
+    }
+
+    #[test]
+    fn test_mkdir_multiple_paths() {
+        let mut vfs = VirtualFilesystem::new(vec![]);
+        let root = vfs.get_root();
+        
+        // Create a subdirectory to be our current directory
+        let subdir = vfs.create_directory(root, "subdir").unwrap();
+        
+        // Test creating multiple directories with different path types
+        let mkdir = MkdirCommand::new();
+        let result = mkdir.execute(
+            &mut vfs,
+            subdir,
+            vec!["/absolute", "~/home", "relative"],
+            None,
+            false
+        );
+        
+        assert!(!result.is_error(), "mkdir with multiple paths should succeed");
+        
+        // Verify /absolute and ~/home were created in root
+        let root_entries = vfs.list_directory(root).unwrap();
+        assert!(
+            root_entries.iter().any(|e| e.name == "absolute"),
+            "/absolute should exist in root"
+        );
+        assert!(
+            root_entries.iter().any(|e| e.name == "home"),
+            "~/home should exist in root"
+        );
+        
+        // Verify relative was created in current directory
+        let subdir_entries = vfs.list_directory(subdir).unwrap();
+        assert!(
+            subdir_entries.iter().any(|e| e.name == "relative"),
+            "relative should exist in current directory"
+        );
+        assert!(
+            !subdir_entries.iter().any(|e| e.name == "absolute" || e.name == "home"),
+            "absolute and home should NOT exist in current directory"
+        );
     }
 }
