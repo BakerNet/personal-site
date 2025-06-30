@@ -1,3 +1,5 @@
+#[cfg(feature = "ssr")]
+use http::StatusCode;
 use leptos::{html::Input, prelude::*};
 use leptos_meta::Title;
 use leptos_router::{components::*, hooks::*};
@@ -183,10 +185,12 @@ pub fn BlogHome() -> impl IntoView {
 
 #[server(input = GetUrl)]
 pub async fn get_post_server(name: String) -> Result<Post, ServerFnError> {
+    let opts = expect_context::<leptos_axum::ResponseOptions>();
     let name = format!("{name}.md");
-    get_post(name)
-        .await
-        .ok_or(ServerFnError::new("Couldn't get blog post"))
+    get_post(name).await.ok_or_else(|| {
+        opts.set_status(StatusCode::NOT_FOUND);
+        ServerFnError::new("Couldn't get blog post")
+    })
 }
 
 #[component]
