@@ -35,7 +35,7 @@ pub fn HomePage() -> impl IntoView {
                         ". I bring both deep technical expertise and proven leadership experience."
                     </p>
                     <p class="text-base mb-4 leading-relaxed">
-                        "Core strengths: Full-stack development (Rust, Go, Python, TypeScript), system architecture, team leadership, and driving measurable business impact. I've led teams through "
+                        "Core strengths: Full-stack development (Rust, Go, Python, TypeScript), system architecture, team leadership, and driving measurable business impact. As Head of Engineering, I led the team through "
                         <strong>"32 consecutive months of user and revenue growth"</strong>
                         " while maintaining engineering excellence."
                     </p>

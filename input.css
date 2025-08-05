@@ -153,18 +153,18 @@ em:after {
 
 /* Enhanced code styling */
 code {
-    @apply bg-brightBlack text-brightWhite px-2 py-1 rounded-sm font-mono text-sm border border-muted/30;
+    @apply bg-brightBlack text-brightWhite px-2 py-1 rounded-sm font-mono text-sm border border-muted/30 whitespace-nowrap;
 }
 
 code:before {
     content: "`";
-    @apply text-muted;
+    @apply text-brightWhite;
     margin-right: 0.1em;
 }
 
 code:after {
     content: "`";
-    @apply text-muted;
+    @apply text-brightWhite;
     margin-left: 0.1em;
 }
 
