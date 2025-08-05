@@ -9,10 +9,10 @@
     <atom:link href="https://hansbaker.com/rss.xml" rel="self" type="application/rss+xml"/>
     <item>
       <title>Claude Code is Eroding my AI Skepticism</title>
-      <link>https://hansbaker.com/blog/claude_code_terminal_transformation</link>
+      <link>https://hansbaker.com/blog/claude_code</link>
       <description><![CDATA[A realistic look at using Claude Code for real work on existing projects]]></description>
       <author>contact@hansbaker.com (Hans Baker)</author>
-      <guid>https://hansbaker.com/blog/claude_code_terminal_transformation</guid>
+      <guid>https://hansbaker.com/blog/claude_code</guid>
       <pubDate>Mon, 4 Aug 2025 22:00:00 +0000</pubDate>
     </item>
     <item>
