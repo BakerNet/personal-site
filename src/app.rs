@@ -8,7 +8,7 @@ mod terminal;
 
 use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::{components::*, path};
+use leptos_router::{components::*, path, SsrMode};
 
 use blog::{BlogHome, BlogPage, BlogWrapper};
 use header::Header;
@@ -55,8 +55,8 @@ pub fn App() -> impl IntoView {
                 <Routes fallback=|| "Page not found.".into_view()>
                     <Route path=path!("/") view=HomePage />
                     <ParentRoute path=path!("/blog") view=BlogWrapper>
-                        <Route path=path!("/") view=BlogHome />
-                        <Route path=path!("/:post") view=BlogPage />
+                        <Route path=path!("/") view=BlogHome ssr=SsrMode::Async />
+                        <Route path=path!("/:post") view=BlogPage ssr=SsrMode::Async />
                     </ParentRoute>
                     <Route path=path!("/cv") view=CVPage />
                 </Routes>
