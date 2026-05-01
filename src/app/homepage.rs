@@ -23,9 +23,9 @@ pub fn HomePage() -> impl IntoView {
                 <div class="w-full lg:max-w-2xl">
                     <h2 class="text-xl font-bold my-8">"Professional Experience"</h2>
                     <p class="text-base mb-4 leading-relaxed">
-                        "8+ years building and scaling software at a top-tier platform serving "
-                        <strong>"2+ billion monthly sessions"</strong>
-                        " with petabyte-scale data infrastructure."
+                        "10 years as a developer with 8+ years building and scaling software at a top-tier platform serving "
+                        <strong>"over 2 billion monthly sessions"</strong>
+                        " and petabyte-scale data infrastructure."
                     </p>
                     <p class="text-base mb-4 leading-relaxed">
                         "My career journey: "
@@ -60,19 +60,19 @@ pub fn HomePage() -> impl IntoView {
                         " and building inclusive, high-performing teams."
                     </p>
                     <p class="text-base mb-4 leading-relaxed">
-                        "My diverse interests reflect my curiosity: competitive strategy games, rock climbing, specialty coffee, and building mechanical keyboards. This breadth helps me approach engineering challenges from unique angles."
+                        "My diverse interests reflect my curiosity: competitive strategy games, rock climbing, specialty coffee, and building mechanical keyboards to name a small subset. My curiosity also extends to my professional world where I open black boxes to understand systems at a deeper level."
                     </p>
                     <div class="bg-brightBlack/30 p-4 rounded-md mb-4">
                         <p class="text-sm font-medium text-green mb-2">"🎯 What drives me:"</p>
                         <ul class="text-sm space-y-1">
-                            <li>"Building systems that scale and teams that thrive"</li>
+                            <li>"Learning and improving at crafting software"</li>
                             <li>"Turning complex problems into elegant solutions"</li>
                             <li>"Mentoring engineers and fostering growth"</li>
                             <li>"Creating exceptional user experiences"</li>
                         </ul>
                     </div>
                     <p class="text-base mb-2">
-                        "Fun facts: I've competed internationally in yoyoing and trained with the USA Olympic Bobsled team. I bring the same dedication to excellence in engineering."
+                        "Fun facts: I've competed internationally in yoyoing and trained with the USA Olympic Bobsled team."
                     </p>
                     <p class="text-base mb-2 text-muted">
                         "Try " <code>"mines"</code> " in the terminal for a quick game break!"

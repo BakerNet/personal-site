@@ -102,7 +102,7 @@ fn Footer() -> impl IntoView {
                         </a>
                     </div>
                     <div class="text-center text-sm text-muted">
-                        "© 2024-2025 Hans Baker. All rights reserved"
+                        "© 2024-2026 Hans Baker. All rights reserved"
                     </div>
                     <div class="order-last text-center lg:order-first lg:text-left text-sm text-muted">
                         "Built with " <span class="text-orange font-medium">"Rust"</span> " & "

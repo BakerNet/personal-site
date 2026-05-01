@@ -71,7 +71,7 @@ pub static INFO_ROW_2: &str = r#"<span class="text-brightCyan">Name</span>: Hans
 pub static INFO_ROW_3: &str = r#"<span class="text-brightCyan">Location</span>: USA"#;
 pub static INFO_ROW_4: &str =
     r#"<span class="text-brightCyan">Occupation</span>: Software Engineering Leader"#;
-pub static INFO_ROW_5: &str = r#"<span class="text-brightCyan">Years Exp</span>: 8+"#;
+pub static INFO_ROW_5: &str = r#"<span class="text-brightCyan">Years Exp</span>: 10+"#;
 pub static INFO_ROW_6: &str = r#"<span class="text-brightCyan">Languages</span>: <span class="whitespace-nowrap"><i class="devicon-go-plain text-brightWhite"></i> Go</span>, <span class="whitespace-nowrap"><i class="devicon-rust-plain text-brightWhite"></i> Rust</span>, <span class="whitespace-nowrap"><i class="devicon-python-plain text-brightWhite"></i> Python</span>, <span class="whitespace-nowrap"><i class="devicon-typescript-plain text-brightWhite"></i> TypeScript</span>... Adaptable"#;
 pub static INFO_ROW_7: &str = r#"<span class="text-brightCyan">Tech</span>: <span class="whitespace-nowrap"><i class="devicon-postgresql-plain text-brightWhite"></i> Postgres</span>, <span class="whitespace-nowrap"><i class="devicon-redis-plain text-brightWhite"></i> Redis</span>, <span class="whitespace-nowrap"><i class="devicon-docker-plain text-brightWhite"></i> Docker</span>, <span class="whitespace-nowrap"><i class="devicon-terraform-plain text-brightWhite"></i> Terraform</span>... Resourceful"#;
 pub static INFO_ROW_8: &str = r#"<span class="text-brightCyan">Soft Skills</span>: Leadership, communication, collaboration... Interpersonal"#;
