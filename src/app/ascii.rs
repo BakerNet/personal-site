@@ -78,7 +78,7 @@ pub static INFO_ROW_8: &str = r#"<span class="text-brightCyan">Soft Skills</span
 pub static INFO_ROW_9: &str = r#"<span class="text-brightCyan">Values</span>: Accountability, empathy, grit, excellence... Principled"#;
 pub static INFO_ROW_10: &str = r#"<span class="text-brightCyan">Education</span>: Comp Sci (no degree), B.A. in Phil... Lifelong Learner"#;
 pub static INFO_ROW_11: &str =
-    r#"<span class="text-brightCyan">Dev Env</span>: Tmux & Neovim in WSL2 (tty)"#;
+    r#"<span class="text-brightCyan">Dev Env</span>: Tmux & Neovim in Ghostty"#;
 pub static INFO_ROW_12: &str =
     r#"<span class="text-brightCyan">Coffee</span>: Black as midnight on a moonless night"#;
 pub static INFO_ROW_13: &str =
